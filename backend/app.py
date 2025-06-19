@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
 import json
+from auth_routes import auth
 
 app = Flask(__name__)
 CORS(app)
@@ -53,5 +54,7 @@ def chat():
     except Exception as e:
         return jsonify({"reply": f"Exception occurred: {str(e)}"})
 
-if __name__ == "__main__":
-    app.run(debug=True)
+app.register_blueprint(auth, url_prefix='/api/auth')
+
+if __name__ == '__main__':
+    app.run(port=5000, debug=True)
