@@ -7,6 +7,14 @@ from auth_routes import auth
 from transformers import pipeline
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from collections import Counter
+from youtube_transcript_api import YouTubeTranscriptApi
+import re
+from PIL import Image
+import base64
+import io
+import pytesseract
+
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 app = Flask(__name__)
 CORS(app)
@@ -14,6 +22,12 @@ app.config["JWT_SECRET_KEY"] = "your-secret-key"
 jwt = JWTManager(app)
 
 # 🔐 Users
+API_KEY = "AIzaSyBy8rbj_Y5shHSBTyCFvJj_xuzGJbx8wdE"
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
+
+educational_content = []
+quizzes = []
+gamification = {"badges": [], "points": 0}
 users = [
     {"username": "student1", "password": "pass", "role": "student"},
     {"username": "teacher1", "password": "pass", "role": "teacher"},
@@ -32,12 +46,112 @@ except Exception as e:
     qa_pipeline = None
     print(f"Failed to load QA model: {e}")
 
-# 🌐 Gemini API Config
-API_KEY = "AIzaSyBy8rbj_Y5shHSBTyCFvJj_xuzGJbx8wdE"
-GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
-
 # 🔐 Auth Blueprint
 app.register_blueprint(auth, url_prefix='/api/auth')
+@app.route("/chat", methods=["POST"])
+def chat():
+    data = request.get_json()
+    user_input = data.get("message", "")
+    action = data.get("action", "default")
+
+    def extract_video_id(url):
+        match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11}).*", url)
+        return match.group(1) if match else None
+
+    if action == "code":
+        prompt = f"Explain this with code: {user_input}"
+
+    elif action == "diagram":
+        prompt = f"Describe this topic with a visual diagram: {user_input}"
+
+    elif action == "quiz":
+        prompt = f"Generate 5 multiple choice quiz questions with options and correct answers based on: {user_input}"
+
+    elif action == "summarize":
+        video_id = extract_video_id(user_input)
+        if not video_id:
+            return jsonify({"reply": "Invalid YouTube URL."})
+        try:
+            transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+            full_transcript = " ".join([entry["text"] for entry in transcript_list][:50])
+            prompt = f"Summarize the key learning points of this video:\n\n{full_transcript}"
+        except Exception as e:
+            return jsonify({"reply": f"Error fetching transcript: {str(e)}"})
+
+    elif action == "image":
+        try:
+            image_data = base64.b64decode(user_input.split(",")[-1])
+            image = Image.open(io.BytesIO(image_data))
+            extracted_text = pytesseract.image_to_string(image)
+            if not extracted_text.strip():
+                return jsonify({"reply": "Could not extract any readable text from the image."})
+            prompt = f"This question was extracted from an image. Help solve or explain it:\n\n{extracted_text}"
+        except Exception as e:
+            return jsonify({"reply": f"Error processing image: {str(e)}"})
+
+    else:
+        prompt = user_input
+
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    body = {
+        "contents": [
+            {
+                "parts": [{"text": prompt}]
+            }
+        ]
+    }
+
+    try:
+        response = requests.post(GEMINI_URL, headers=headers, data=json.dumps(body))
+        result = response.json()
+
+        if "candidates" in result:
+            reply = result["candidates"][0]["content"]["parts"][0]["text"]
+        else:
+            reply = f"Error: {result.get('error', {}).get('message', 'Unknown error')}"
+
+        return jsonify({"reply": reply})
+
+    except Exception as e:
+        return jsonify({"reply": f"Exception occurred: {str(e)}"})
+
+@app.route("/upload-image", methods=["POST"])
+def upload_image():
+    try:
+        data = request.get_json()
+        image_data = data.get("image", "")
+
+        if not image_data:
+            return jsonify({"reply": "No image received"})
+
+        image_bytes = base64.b64decode(image_data.split(",")[1])
+        image = Image.open(io.BytesIO(image_bytes))
+
+        extracted_text = pytesseract.image_to_string(image)
+        prompt = f"Explain this question step-by-step:\n{extracted_text}"
+
+        headers = {"Content-Type": "application/json"}
+        body = {
+            "contents": [
+                {
+                    "parts": [{"text": prompt}]
+                }
+            ]
+        }
+        response = requests.post(GEMINI_URL, headers=headers, data=json.dumps(body))
+        result = response.json()
+        if "candidates" in result:
+            reply = result["candidates"][0]["content"]["parts"][0]["text"]
+        else:
+            reply = f"Error: {result.get('error', {}).get('message', 'Unknown error')}"
+
+        return jsonify({"reply": reply})
+
+    except Exception as e:
+        return jsonify({"reply": f"Error: {str(e)}"})
 
 # --- ROUTES ---
 
@@ -202,6 +316,11 @@ def admin_page():
     <p>Content: {{ stats['content'] }}</p>
     <p>Quizzes: {{ stats['quizzes'] }}</p>
     </body></html>""", stats=stats)
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    code = getattr(e, 'code', 500)
+    return jsonify({"reply": f"Server error: {str(e)}"}), code
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

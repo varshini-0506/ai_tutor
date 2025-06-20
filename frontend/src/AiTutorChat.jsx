@@ -5,22 +5,17 @@ import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 // Parse Gemini markdown-style quiz format
 function parseMarkdownQuiz(text) {
-  // Split by questions
   const questionBlocks = text.split(/\*\*Question \d+:\*\*/g).map(b => b.trim()).filter(Boolean);
   return questionBlocks.map(block => {
-    // Remove the correct answer line from the block before extracting options
     const blockWithoutAnswer = block.replace(/\*\*Correct Answer:\*\*.*$/gim, '').trim();
-    // Extract question text (up to first option)
     const qMatch = blockWithoutAnswer.match(/^(.*?)([a-d]\))/is);
     const question = qMatch ? qMatch[1].replace(/\n/g, ' ').trim() : blockWithoutAnswer;
-    // Extract options (capture everything after the letter, including markdown)
     const options = [];
     const optionRegex = /([a-d])\)\s+([\s\S]*?)(?=\n[a-d]\)|$)/gi;
     let optMatch;
     while ((optMatch = optionRegex.exec(blockWithoutAnswer))) {
       options.push({ key: optMatch[1], text: optMatch[2].trim() });
     }
-    // Extract correct answer from the original block
     const ansMatch = block.match(/\*\*Correct Answer:\*\*\s*([a-d]\))/i);
     const answer = ansMatch ? ansMatch[1][0] : null;
     return { question, options, answer };
@@ -84,25 +79,71 @@ export default function AiTutorChat({ token }) {
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [action, setAction] = useState('text');
+  const [imageFile, setImageFile] = useState(null);
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!question) return;
+    if (!question && action !== 'image') return;
     setLoading(true);
     setMessages([...messages, { from: 'user', text: question, action }]);
-    const body = { message: question, action };
-    const res = await fetch('http://127.0.0.1:5000/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    setMessages(msgs => [...msgs, { from: 'ai', text: data.reply, action }]);
-    setQuestion('');
-    setLoading(false);
+
+    // Handle image upload as base64 in JSON
+    if (action === 'image' && imageFile) {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result;
+        try {
+          const res = await fetch('http://127.0.0.1:5000/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+            body: JSON.stringify({ message: base64String, action: 'image' })
+          });
+          const contentType = res.headers.get('content-type');
+          let data;
+          if (contentType && contentType.includes('application/json')) {
+            data = await res.json();
+          } else {
+            const text = await res.text();
+            throw new Error('Non-JSON response: ' + text);
+          }
+          setMessages(msgs => [...msgs, { from: 'ai', text: data.reply, action }]);
+        } catch (err) {
+          setMessages(msgs => [...msgs, { from: 'ai', text: `Error: ${err.message}`, action }]);
+        } finally {
+          setQuestion('');
+          setImageFile(null);
+          setLoading(false);
+        }
+      };
+      reader.readAsDataURL(imageFile);
+      return;
+    }
+
+    // Non-image actions
+    try {
+      const res = await fetch('http://127.0.0.1:5000/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+        body: JSON.stringify({ message: question, action })
+      });
+      const contentType = res.headers.get('content-type');
+      let data;
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error('Non-JSON response: ' + text);
+      }
+      setMessages(msgs => [...msgs, { from: 'ai', text: data.reply, action }]);
+    } catch (err) {
+      setMessages(msgs => [...msgs, { from: 'ai', text: `Error: ${err.message}`, action }]);
+    } finally {
+      setQuestion('');
+      setImageFile(null);
+      setLoading(false);
+    }
   };
 
-  // Helper to render markdown with code highlighting
   function MarkdownWithCode({ children }) {
     return (
       <ReactMarkdown
@@ -124,10 +165,7 @@ export default function AiTutorChat({ token }) {
   }
 
   return (
-    <div style={{
-      maxWidth: 600, margin: '2rem auto', background: '#fff', borderRadius: 12,
-      boxShadow: '0 2px 16px rgba(0,0,0,0.08)', padding: '2rem', height: '80vh', display: 'flex', flexDirection: 'column'
-    }}>
+    <div style={{ maxWidth: 600, margin: '2rem auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 16px rgba(0,0,0,0.08)', padding: '2rem', height: '80vh', display: 'flex', flexDirection: 'column' }}>
       <h2>AI Tutor Chat</h2>
       <form onSubmit={sendMessage} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -136,17 +174,32 @@ export default function AiTutorChat({ token }) {
             <option value="code">Code</option>
             <option value="diagram">Diagram</option>
             <option value="quiz">Quiz</option>
+            <option value="summarize">Summarize</option>
+            <option value="image">Image</option>
           </select>
+
           <input
-            value={question}
+            value={action === 'image' ? '' : question}
             onChange={e => setQuestion(e.target.value)}
-            placeholder="Ask a question..."
+            placeholder={action === 'summarize' ? 'Enter YouTube URL...' : 'Ask a question...'}
+            disabled={action === 'image'}
             style={{ borderRadius: 6, border: '1px solid #ccc', padding: 8, flex: 1 }}
-            required
+            required={action !== 'image'}
           />
         </div>
+
+        {action === 'image' && (
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => setImageFile(e.target.files[0])}
+            required
+          />
+        )}
+
         <button type="submit" disabled={loading}>{loading ? 'Thinking...' : 'Ask AI'}</button>
       </form>
+
       <div style={{ flex: 1, overflowY: 'auto', paddingRight: 8 }}>
         {messages.map((msg, i) => (
           <div key={i} style={{
@@ -171,4 +224,4 @@ export default function AiTutorChat({ token }) {
       </div>
     </div>
   );
-} 
+}
