@@ -11,7 +11,7 @@ export default function Navbar({ role, onLogout, isLoggedIn }) {
       {isLoggedIn && <Link to="/report">Report</Link>}
       {isLoggedIn && <Link to="/collaboration">Collaboration</Link>}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        {isLoggedIn && <span style={{ color: '#fff', fontWeight: 'bold' }}>{role}</span>}
+        {isLoggedIn && role !== 'common' && <span style={{ color: '#fff', fontWeight: 'bold' }}>{role}</span>}
         {isLoggedIn ? (
           <button onClick={onLogout} style={{ background: '#dc3545', color: '#fff', border: 'none', borderRadius: 6, padding: '0.4rem 1rem', cursor: 'pointer' }}>Logout</button>
         ) : null}

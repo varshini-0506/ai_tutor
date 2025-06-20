@@ -1,0 +1,89 @@
+[
+  {
+    "subject": "Data Structures",
+    "topics": [
+      { "title": "Array data structure", "videoUrl": "https://www.youtube.com/embed/0JUN9aDxVmI" },
+      { "title": "Linked list", "videoUrl": "https://www.youtube.com/embed/WwfhLC16bis" },
+      { "title": "Stack (abstract data type)", "videoUrl": "https://www.youtube.com/embed/Iy8IYZNJxmE" },
+      { "title": "Binary search tree", "videoUrl": "https://www.youtube.com/embed/9Jry5-82I68" }
+    ]
+  },
+  {
+    "subject": "Operating Systems",
+    "topics": [
+      { "title": "Operating system", "videoUrl": "https://www.youtube.com/embed/26QPDBe-NB8" },
+      { "title": "Process management", "videoUrl": "https://www.youtube.com/embed/-7XA4e5v1dM" },
+      { "title": "Memory management", "videoUrl": "https://www.youtube.com/embed/Nx0hB3Wkcuw" },
+      { "title": "Deadlock", "videoUrl": "https://www.youtube.com/embed/Rl6dH1cU5mY" }
+    ]
+  },
+  {
+    "subject": "Database Management Systems",
+    "topics": [
+      { "title": "Database", "videoUrl": "https://www.youtube.com/embed/HXV3zeQKqGY" },
+      { "title": "Normalization (database)", "videoUrl": "https://www.youtube.com/embed/J0Pj8JJ34zg" },
+      { "title": "SQL", "videoUrl": "https://www.youtube.com/embed/27axs9dO7AE" },
+      { "title": "Transaction processing", "videoUrl": "https://www.youtube.com/embed/HfTxHr3ltQg" }
+    ]
+  },
+  {
+    "subject": "Computer Networks",
+    "topics": [
+      { "title": "Computer network", "videoUrl": "https://www.youtube.com/embed/3QhU9jd03a0" },
+      { "title": "IP address", "videoUrl": "https://www.youtube.com/embed/bj-Yc0xO3Do" },
+      { "title": "TCP/IP model", "videoUrl": "https://www.youtube.com/embed/Jg0HwNN-9E0" },
+      { "title": "Routing", "videoUrl": "https://www.youtube.com/embed/jph3Z0fOqBU" }
+    ]
+  },
+  {
+    "subject": "Computer Organization & Architecture",
+    "topics": [
+      { "title": "Computer architecture", "videoUrl": "https://www.youtube.com/embed/LXOaCkbt4lI" },
+      { "title": "Instruction set architecture", "videoUrl": "https://www.youtube.com/embed/WmN1MfE06fU" },
+      { "title": "Pipelining (computing)", "videoUrl": "https://www.youtube.com/embed/EuBBz3bI-aA" },
+      { "title": "Cache (computing)", "videoUrl": "https://www.youtube.com/embed/vA7qV9QN0YM" }
+    ]
+  },
+  {
+    "subject": "Software Engineering",
+    "topics": [
+      { "title": "Software engineering", "videoUrl": "https://www.youtube.com/embed/NyL5geMF4fA" },
+      { "title": "Software development life cycle", "videoUrl": "https://www.youtube.com/embed/UQfu1RhLZrI" },
+      { "title": "Agile software development", "videoUrl": "https://www.youtube.com/embed/BA3XZ2yX2GY" }
+    ]
+  },
+  {
+    "subject": "Theory of Computation",
+    "topics": [
+      { "title": "Theory of computation", "videoUrl": "https://www.youtube.com/embed/3fY7fYtbNBI" },
+      { "title": "Finite-state machine", "videoUrl": "https://www.youtube.com/embed/99Zyb3C0UoY" },
+      { "title": "Turing machine", "videoUrl": "https://www.youtube.com/embed/dNRDvLACg5Q" }
+    ]
+  },
+  {
+    "subject": "Compiler Design",
+    "topics": [
+      { "title": "Compiler", "videoUrl": "https://www.youtube.com/embed/F2z6GU3acJU" },
+      { "title": "Lexical analysis", "videoUrl": "https://www.youtube.com/embed/kJSwG7U6-V0" },
+      { "title": "Syntax analysis", "videoUrl": "https://www.youtube.com/embed/Nxu5GPZ_U_U" },
+      { "title": "Code optimization", "videoUrl": "https://www.youtube.com/embed/Qyv_dH6gUXY" }
+    ]
+  },
+  {
+    "subject": "Artificial Intelligence",
+    "topics": [
+      { "title": "Artificial Intelligence", "videoUrl": "https://www.youtube.com/embed/JMUxmLyrhSk" },
+      { "title": "Expert system", "videoUrl": "https://www.youtube.com/embed/ZRYWl1QKCB4" },
+      { "title": "Ethics of artificial intelligence", "videoUrl": "https://www.youtube.com/embed/xRw6Osga9Jw" }
+    ]
+  },
+  {
+    "subject": "Machine Learning",
+    "topics": [
+      { "title": "Machine learning", "videoUrl": "https://www.youtube.com/embed/GwIo3gDZCVQ" },
+      { "title": "Reinforcement learning", "videoUrl": "https://www.youtube.com/embed/2pWv7GOvuf0" },
+      { "title": "Supervised learning", "videoUrl": "https://www.youtube.com/embed/5q9VwDeJ5IQ" },
+      { "title": "Unsupervised learning", "videoUrl": "https://www.youtube.com/embed/IaO69CF5mbY" }
+    ]
+  }
+]
