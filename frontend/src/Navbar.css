@@ -1,0 +1,22 @@
+.navbar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  background: linear-gradient(90deg, #22223b 60%, #4a4e69 100%);
+  padding: 1rem 2rem;
+  border-radius: 0 0 16px 16px;
+  box-shadow: 0 2px 8px rgba(34,34,59,0.08);
+}
+
+.navbar a {
+  color: #fff;
+  font-weight: 500;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.navbar a:hover {
+  background: #c9ada7;
+  color: #22223b;
+} 

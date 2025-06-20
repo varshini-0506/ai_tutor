@@ -1,0 +1,51 @@
+<!-- college-tutor.aiml -->
+<aiml version="1.0.1">
+    <category>
+        <pattern>EXPLAIN MACHINE LEARNING</pattern>
+        <template>Machine learning is a subset of AI that enables systems to learn from data. Want a deep dive or a coding example?</template>
+    </category>
+    <category>
+        <pattern>WHAT IS MACHINE LEARNING</pattern>
+        <template><srai>EXPLAIN MACHINE LEARNING</srai></template>
+    </category>
+    <category>
+        <pattern>* MACHINE LEARNING *</pattern>
+        <template><srai>EXPLAIN MACHINE LEARNING</srai></template>
+    </category>
+    <category>
+        <pattern>HELP WITH DATA STRUCTURES</pattern>
+        <template>Let's cover data structures! Arrays, linked lists, and trees are key. Would you like an example in Python?</template>
+    </category>
+    <category>
+        <pattern>* DATA STRUCTURES *</pattern>
+        <template><srai>HELP WITH DATA STRUCTURES</srai></template>
+    </category>
+    <category>
+        <pattern>JOB INTERVIEW TIPS</pattern>
+        <template>Prepare by practicing common questions, showcasing projects, and being confident. Want a mock interview?</template>
+    </category>
+    <category>
+        <pattern>* JOB INTERVIEW *</pattern>
+        <template><srai>JOB INTERVIEW TIPS</srai></template>
+    </category>
+    <category>
+        <pattern>QUIT</pattern>
+        <template>Goodbye! Feel free to return anytime.</template>
+    </category>
+    <category>
+        <pattern>YES</pattern>
+        <template>Great! Please specify 'deep dive' or 'coding example' for more details.</template>
+    </category>
+    <category>
+        <pattern>* YES *</pattern>
+        <template><srai>YES</srai></template>
+    </category>
+    <category>
+        <pattern>DEEP DIVE *</pattern>
+        <template>Let's dive deeper! Machine learning includes supervised, unsupervised, and reinforcement learning. More details on request.</template>
+    </category>
+    <category>
+        <pattern>EXAMPLE *</pattern>
+        <template>Here's a simple example: print('Hello, Machine Learning!') Let me know if you want more.</template>
+    </category>
+</aiml>
