@@ -20,7 +20,7 @@ export default function Login({ onLogin }) {
     });
     if (res.ok) {
       const data = await res.json();
-      onLogin(data.access_token, data.role);
+      onLogin(data.access_token, data.role, username);
       navigate('/');
     } else {
       setError('Invalid credentials');
@@ -49,7 +49,7 @@ export default function Login({ onLogin }) {
       });
       if (loginRes.ok) {
         const data = await loginRes.json();
-        onLogin(data.access_token, data.role);
+        onLogin(data.access_token, data.role, username);
         navigate('/');
       } else {
         setSuccess('Registration successful! Please log in.');

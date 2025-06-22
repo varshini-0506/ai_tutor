@@ -1,5 +1,11 @@
 Flask
 Flask-Cors
+Flask-JWT-Extended
 psycopg2-binary
 python-dotenv
 bcrypt
+requests
+transformers
+youtube-transcript-api
+Pillow
+pytesseract

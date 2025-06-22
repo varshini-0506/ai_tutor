@@ -5,6 +5,7 @@ import Navbar from './Navbar';
 import Home from './Home';
 import ContentList from './ContentList';
 import QuizList from './QuizList';
+import Quiz from './Quiz';
 import Report from './Report';
 import Collaboration from './Collaboration';
 import Login from './Login';
@@ -19,9 +20,10 @@ import './App.css';
 function AppRoutes({ token, setToken, role, setRole, handleLogout }) {
   const navigate = useNavigate();
 
-  const handleLogin = (jwt, userRole) => {
+  const handleLogin = (jwt, userRole, username) => {
     setToken(jwt);
     setRole(userRole);
+    localStorage.setItem('username', username);
     navigate('/');
   };
 
@@ -40,9 +42,10 @@ function AppRoutes({ token, setToken, role, setRole, handleLogout }) {
             <Route path="/" element={<Home />} />
             <Route path="/content" element={<Lessons />} />
             <Route path="/quizzes" element={<QuizList token={token} role={role} />} />
+            <Route path="/quiz" element={<Quiz token={token} />} />
             <Route path="/ai-tutor" element={<AiTutorChat token={token} />} />
             <Route path="/report" element={<Report />} />
-            <Route path="/collaboration" element={<Collaboration />} />
+            <Route path="/collaboration" element={<Collaboration token={token} role={role} />} />
             {/* Analytics route can remain if needed */}
             <Route path="/analytics" element={<Analytics />} />
             {/* Catch-all */}
@@ -62,6 +65,7 @@ function App() {
   const handleLogout = () => {
     setToken(null);
     setRole(null);
+    localStorage.removeItem('username');
   };
 
   return (
