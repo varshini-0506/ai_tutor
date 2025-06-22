@@ -1,0 +1,15 @@
+[
+  {
+    "id": "2f0718ab-dd9c-4c25-af41-86d632b061d4",
+    "name": "AI_VCET",
+    "description": "Let's learn together",
+    "subject": "Artificial Intelligence",
+    "created_by": "shailesh",
+    "created_at": "2025-06-22T18:51:57.114866",
+    "members": [
+      "shailesh"
+    ],
+    "max_members": 7,
+    "is_active": true
+  }
+]

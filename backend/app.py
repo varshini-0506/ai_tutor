@@ -10,6 +10,9 @@ matplotlib.use('Agg')
 
 from auth_routes import auth, set_users
 from transformers import pipeline
+from auth_routes import auth
+from collaboration import collaboration
+from transformers.pipelines import pipeline
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
 from collections import Counter
 from youtube_transcript_api import YouTubeTranscriptApi
@@ -26,12 +29,18 @@ import numpy as np
 
 # Define this at the top level so all routes can access it
 COURSE_DATA_PATH = os.path.join(os.path.dirname(__file__), 'course_data.json')
+from datetime import datetime, timedelta
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True, allow_headers=["Authorization", "Content-Type"])
 app.config["JWT_SECRET_KEY"] = "your-secret-key"
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)  # Set 24 hour expiration
+app.config["JWT_ERROR_MESSAGE_KEY"] = "msg"
+app.config["JWT_TOKEN_LOCATION"] = ["headers"]
+app.config["JWT_HEADER_NAME"] = "Authorization"
+app.config["JWT_HEADER_TYPE"] = "Bearer"
 jwt = JWTManager(app)
 
 # JWT Error Handlers for debugging
@@ -49,6 +58,37 @@ def invalid_token_callback(callback):
 def expired_token_callback(jwt_header, jwt_payload):
     print("JWT expired")
     return jsonify({"msg": "Expired JWT"}), 401
+# JWT Error Handlers
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_payload):
+    print(f"Debug - JWT token expired: {jwt_payload}")
+    return jsonify({"msg": "Token has expired"}), 401
+
+@jwt.invalid_token_loader
+def invalid_token_callback(error):
+    print(f"Debug - Invalid JWT token: {error}")
+    print(f"Debug - Request headers: {dict(request.headers)}")
+    print(f"Debug - Authorization header: {request.headers.get('Authorization')}")
+    print(f"Debug - Error type: {type(error)}")
+    print(f"Debug - Error details: {str(error)}")
+    return jsonify({"msg": "Invalid token"}), 401
+
+@jwt.unauthorized_loader
+def missing_token_callback(error):
+    print(f"Debug - Missing JWT token: {error}")
+    print(f"Debug - Request headers: {dict(request.headers)}")
+    print(f"Debug - Authorization header: {request.headers.get('Authorization')}")
+    return jsonify({"msg": "Missing token"}), 401
+
+@jwt.needs_fresh_token_loader
+def token_not_fresh_callback(jwt_header, jwt_payload):
+    print(f"Debug - Token not fresh: {jwt_payload}")
+    return jsonify({"msg": "Token not fresh"}), 401
+
+@jwt.revoked_token_loader
+def revoked_token_callback(jwt_header, jwt_payload):
+    print(f"Debug - Token revoked: {jwt_payload}")
+    return jsonify({"msg": "Token has been revoked"}), 401
 
 # 🔐 Users
 API_KEY = "AIzaSyBy8rbj_Y5shHSBTyCFvJj_xuzGJbx8wdE"
@@ -86,6 +126,81 @@ if not os.path.exists('reports'):
 # 🔐 Auth Blueprint
 app.register_blueprint(auth, url_prefix='/api/auth')
 set_users(users)  # Set the users list in auth_routes
+app.register_blueprint(collaboration, url_prefix='/api/collaboration')
+
+@app.route('/api/test-jwt', methods=['GET'])
+@jwt_required()
+def test_jwt():
+    """Test route to verify JWT is working"""
+    user = get_jwt_identity()
+    print(f"Debug - JWT test successful, user: {user}")
+    return jsonify({"msg": "JWT is working", "user": user})
+
+@app.route('/api/test-jwt-main', methods=['GET'])
+@jwt_required()
+def test_jwt_main():
+    """Test route to verify JWT is working in main app"""
+    try:
+        user = get_jwt_identity()
+        print(f"Debug - Main app JWT test successful, user: {user}")
+        print(f"Debug - Request headers: {dict(request.headers)}")
+        print(f"Debug - Authorization header: {request.headers.get('Authorization')}")
+        return jsonify({"msg": "JWT is working in main app", "user": user})
+    except Exception as e:
+        print(f"Debug - Main app JWT test failed: {str(e)}")
+        return jsonify({"error": f"JWT test failed: {str(e)}"}), 401
+
+@app.route('/api/test-jwt-create', methods=['GET'])
+def test_jwt_create():
+    """Test route to create a new JWT token"""
+    try:
+        test_user = {"username": "testuser", "role": "test"}
+        token = create_access_token(identity=test_user)
+        print(f"Debug - Created test token: {token}")
+        return jsonify({"msg": "Test token created", "token": token})
+    except Exception as e:
+        print(f"Debug - Token creation failed: {str(e)}")
+        return jsonify({"error": f"Token creation failed: {str(e)}"}), 500
+
+@app.route('/api/test-jwt-validate', methods=['POST'])
+def test_jwt_validate():
+    """Test route to validate a JWT token"""
+    try:
+        data = request.get_json()
+        token = data.get('token')
+        print(f"Debug - Testing token validation for: {token}")
+        
+        # Try to decode the token manually to see what's happening
+        import jwt as pyjwt
+        try:
+            decoded = pyjwt.decode(token, "your-secret-key", algorithms=["HS256"])
+            print(f"Debug - Token decoded successfully: {decoded}")
+            return jsonify({"msg": "Token decoded successfully", "payload": decoded})
+        except Exception as e:
+            print(f"Debug - Token decode failed: {str(e)}")
+            return jsonify({"error": f"Token decode failed: {str(e)}"}), 400
+            
+    except Exception as e:
+        print(f"Debug - Token validation test failed: {str(e)}")
+        return jsonify({"error": f"Token validation test failed: {str(e)}"}), 500
+
+@app.route('/api/test-server', methods=['GET'])
+def test_server():
+    """Simple test route to verify server is working"""
+    print("Debug - Test server route called")
+    return jsonify({"msg": "Server is working"})
+
+@app.route('/api/test-headers', methods=['GET'])
+def test_headers():
+    """Test route to check request headers"""
+    print("Debug - Test headers route called")
+    print(f"Debug - All headers: {dict(request.headers)}")
+    print(f"Debug - Authorization header: {request.headers.get('Authorization')}")
+    return jsonify({
+        "msg": "Headers received",
+        "headers": dict(request.headers),
+        "authorization": request.headers.get('Authorization')
+    })
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -198,6 +313,20 @@ def upload_image():
 def home():
     return 'Welcome to the AI Tutor Backend!', 200
 
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    user = next((u for u in users if u["username"] == data["username"] and u["password"] == data["password"]), None)
+    if not user:
+        return jsonify({"msg": "Bad username or password"}), 401
+    
+    # Use username as identity (string) and role as additional claims
+    access_token = create_access_token(
+        identity=user["username"],
+        additional_claims={"role": user["role"]}
+    )
+    return jsonify(access_token=access_token, role=user["role"])
+
 @app.route('/api/ai-tutor', methods=['POST'])
 def ai_tutor():
     data = request.json
@@ -219,11 +348,264 @@ def get_content():
             return jsonify(json.load(f))
     return jsonify([])
 
+@app.route('/api/subjects', methods=['GET'])
+def get_subjects():
+    """Get all available subjects from course data"""
+    data_path = os.path.join(os.path.dirname(__file__), 'course_data.json')
+    if os.path.exists(data_path):
+        with open(data_path) as f:
+            content = json.load(f)
+            subjects = [item['subject'] for item in content]
+            return jsonify(subjects)
+    return jsonify([])
+
+@app.route('/api/topics/<subject>', methods=['GET'])
+def get_topics_by_subject(subject):
+    """Get all topics for a specific subject"""
+    data_path = os.path.join(os.path.dirname(__file__), 'course_data.json')
+    if os.path.exists(data_path):
+        with open(data_path) as f:
+            content = json.load(f)
+            for item in content:
+                if item['subject'] == subject:
+                    return jsonify(item['topics'])
+    return jsonify([])
+
+@app.route('/api/generate-quiz/<subject>', methods=['GET'])
+def generate_quiz(subject):
+    """Generate quiz questions for a specific subject using Gemini API"""
+    try:
+        # Get topics for the subject
+        data_path = os.path.join(os.path.dirname(__file__), 'course_data.json')
+        topics = []
+        if os.path.exists(data_path):
+            with open(data_path) as f:
+                content = json.load(f)
+                for item in content:
+                    if item['subject'] == subject:
+                        topics = [topic['title'] for topic in item['topics']]
+                        break
+        
+        if not topics:
+            return jsonify({"error": "No topics found for this subject"}), 404
+        
+        # Create prompt for Gemini
+        topics_text = ", ".join(topics)
+        prompt = f"""Generate 5 multiple choice quiz questions for the subject "{subject}" covering these topics: {topics_text}.
+
+Please format the response as a JSON array with this structure:
+[
+  {{
+    "question": "Question text here?",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_answer": 0,
+    "explanation": "Brief explanation of the correct answer"
+  }}
+]
+
+Make sure:
+- Questions are relevant to the subject and topics
+- All options are plausible but only one is correct
+- correct_answer is the index (0-3) of the correct option
+- Questions test understanding, not just memorization
+- Difficulty level is appropriate for students learning this subject"""
+
+        headers = {
+            "Content-Type": "application/json"
+        }
+
+        body = {
+            "contents": [
+                {
+                    "parts": [{"text": prompt}]
+                }
+            ]
+        }
+
+        # Add retry logic and better error handling
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    GEMINI_URL, 
+                    headers=headers, 
+                    data=json.dumps(body),
+                    timeout=30,  # Add timeout
+                    verify=True   # Ensure SSL verification
+                )
+                response.raise_for_status()  # Raise exception for bad status codes
+                break
+            except requests.exceptions.SSLError as e:
+                print(f"SSL Error on attempt {attempt + 1}: {str(e)}")
+                if attempt == max_retries - 1:
+                    return jsonify({"error": f"SSL connection error: {str(e)}"}), 500
+                continue
+            except requests.exceptions.RequestException as e:
+                print(f"Request error on attempt {attempt + 1}: {str(e)}")
+                if attempt == max_retries - 1:
+                    return jsonify({"error": f"Network error: {str(e)}"}), 500
+                continue
+        
+        result = response.json()
+
+        if "candidates" in result:
+            reply = result["candidates"][0]["content"]["parts"][0]["text"]
+            
+            # Try to extract JSON from the response
+            try:
+                # Find JSON array in the response
+                import re
+                json_match = re.search(r'\[.*\]', reply, re.DOTALL)
+                if json_match:
+                    quiz_data = json.loads(json_match.group())
+                    return jsonify({
+                        "success": True,
+                        "questions": quiz_data,
+                        "subject": subject
+                    })
+                else:
+                    return jsonify({
+                        "error": "Could not parse quiz data from AI response",
+                        "raw_response": reply
+                    }), 500
+            except json.JSONDecodeError as e:
+                return jsonify({
+                    "error": f"Failed to parse quiz data: {str(e)}",
+                    "raw_response": reply
+                }), 500
+        else:
+            return jsonify({
+                "error": f"AI API error: {result.get('error', {}).get('message', 'Unknown error')}"
+            }), 500
+
+    except Exception as e:
+        print(f"Error generating quiz: {str(e)}")
+        # Fallback: Generate sample questions locally
+        try:
+            sample_questions = generate_sample_questions(subject, topics)
+            return jsonify({
+                "success": True,
+                "questions": sample_questions,
+                "subject": subject,
+                "note": "Using sample questions due to API connectivity issues"
+            })
+        except Exception as fallback_error:
+            return jsonify({"error": f"Failed to generate quiz: {str(e)}"}), 500
+
+def generate_sample_questions(subject, topics):
+    """Generate sample quiz questions locally as fallback"""
+    sample_questions = []
+    
+    # Create sample questions based on subject
+    if subject == "Data Structures":
+        sample_questions = [
+            {
+                "question": "Which data structure follows the LIFO principle?",
+                "options": ["Queue", "Stack", "Linked List", "Tree"],
+                "correct_answer": 1,
+                "explanation": "Stack follows Last In First Out (LIFO) principle where the last element added is the first one to be removed."
+            },
+            {
+                "question": "What is the time complexity of searching in a binary search tree?",
+                "options": ["O(1)", "O(log n)", "O(n)", "O(n²)"],
+                "correct_answer": 1,
+                "explanation": "Binary search tree has O(log n) time complexity for search operations in the average case."
+            },
+            {
+                "question": "Which of the following is a linear data structure?",
+                "options": ["Tree", "Graph", "Array", "Heap"],
+                "correct_answer": 2,
+                "explanation": "Array is a linear data structure where elements are stored in contiguous memory locations."
+            },
+            {
+                "question": "What operation is used to add an element to a stack?",
+                "options": ["Enqueue", "Dequeue", "Push", "Pop"],
+                "correct_answer": 2,
+                "explanation": "Push operation is used to add an element to the top of a stack."
+            },
+            {
+                "question": "Which data structure is best for implementing a priority queue?",
+                "options": ["Array", "Linked List", "Heap", "Stack"],
+                "correct_answer": 2,
+                "explanation": "Heap is the most efficient data structure for implementing a priority queue."
+            }
+        ]
+    elif subject == "Machine Learning":
+        sample_questions = [
+            {
+                "question": "What type of learning uses labeled training data?",
+                "options": ["Unsupervised Learning", "Supervised Learning", "Reinforcement Learning", "Deep Learning"],
+                "correct_answer": 1,
+                "explanation": "Supervised learning uses labeled training data to learn the mapping from inputs to outputs."
+            },
+            {
+                "question": "Which algorithm is commonly used for classification problems?",
+                "options": ["Linear Regression", "Logistic Regression", "K-means", "Random Forest"],
+                "correct_answer": 1,
+                "explanation": "Logistic Regression is commonly used for binary classification problems."
+            },
+            {
+                "question": "What is overfitting in machine learning?",
+                "options": ["Model performs well on training data but poorly on new data", "Model performs poorly on all data", "Model is too simple", "Model has too few parameters"],
+                "correct_answer": 0,
+                "explanation": "Overfitting occurs when a model learns the training data too well but fails to generalize to new, unseen data."
+            },
+            {
+                "question": "Which evaluation metric is used for classification problems?",
+                "options": ["Mean Squared Error", "Accuracy", "R-squared", "Mean Absolute Error"],
+                "correct_answer": 1,
+                "explanation": "Accuracy is a common evaluation metric for classification problems, measuring the proportion of correct predictions."
+            },
+            {
+                "question": "What is the purpose of cross-validation?",
+                "options": ["To increase model complexity", "To reduce training time", "To assess model performance", "To increase data size"],
+                "correct_answer": 2,
+                "explanation": "Cross-validation is used to assess how well a model will generalize to new, unseen data."
+            }
+        ]
+    else:
+        # Generic questions for other subjects
+        sample_questions = [
+            {
+                "question": f"What is the main focus of {subject}?",
+                "options": ["Theory only", "Practical applications", "Both theory and practice", "None of the above"],
+                "correct_answer": 2,
+                "explanation": f"{subject} typically involves both theoretical concepts and practical applications."
+            },
+            {
+                "question": f"Which of the following is important in {subject}?",
+                "options": ["Memorization", "Understanding concepts", "Guessing", "Avoiding practice"],
+                "correct_answer": 1,
+                "explanation": f"Understanding concepts is crucial for mastering {subject}."
+            },
+            {
+                "question": f"What is a key skill needed for {subject}?",
+                "options": ["Problem solving", "Avoiding challenges", "Memorizing everything", "Working alone"],
+                "correct_answer": 0,
+                "explanation": f"Problem solving is a fundamental skill required in {subject}."
+            },
+            {
+                "question": f"How should you approach learning {subject}?",
+                "options": ["Cramming before exams", "Regular practice and study", "Avoiding difficult topics", "Relying only on lectures"],
+                "correct_answer": 1,
+                "explanation": f"Regular practice and study is the most effective approach for learning {subject}."
+            },
+            {
+                "question": f"What is the best way to master {subject}?",
+                "options": ["Reading only", "Practice and application", "Avoiding questions", "Memorizing formulas"],
+                "correct_answer": 1,
+                "explanation": f"Practice and application of concepts is the best way to master {subject}."
+            }
+        ]
+    
+    return sample_questions
+
 @app.route('/api/content', methods=['POST'])
 @jwt_required()
 def add_content():
-    user = get_jwt_identity()
-    if user["role"] not in ["teacher", "common"]:
+    username = get_jwt_identity()
+    role = get_jwt()["role"]  # Get role from additional claims
+    if role not in ["teacher", "common"]:
         return jsonify({"msg": "Only teachers or common users can add content."}), 403
     data = request.json
     new_id = len(educational_content) + 1
@@ -265,8 +647,9 @@ def get_quizzes():
 @app.route('/api/quiz', methods=['POST'])
 @jwt_required()
 def add_quiz():
-    user = get_jwt_identity()
-    if user["role"] not in ["teacher", "common"]:
+    username = get_jwt_identity()
+    role = get_jwt()["role"]  # Get role from additional claims
+    if role not in ["teacher", "common"]:
         return jsonify({"msg": "Only teachers or common users can add quizzes."}), 403
     data = request.json
     new_id = len(quizzes) + 1
@@ -564,7 +947,7 @@ def admin_page():
     <html>
     <head><title>AI Tutor Admin</title></head>
     <body>
-    <h1>Admin Panel</h1>
+    <h1>Admin Panel</h1> 
     <p>Users: {{ stats['users'] }}</p>
     <p>Content: {{ stats['content'] }}</p>
     <p>Quizzes: {{ stats['quizzes'] }}</p>

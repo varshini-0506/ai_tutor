@@ -57,6 +57,20 @@
   {
     "subject": "Data Structures",
     "title": "Array data structure",
+<<<<<<< HEAD
     "timestamp": "2025-06-21T14:09:20.687Z"
+=======
+    "timestamp": "2025-06-20T07:29:02.614Z"
+  },
+  {
+    "subject": "Data Structures",
+    "title": "Stack (abstract data type)",
+    "timestamp": "2025-06-20T07:32:07.246Z"
+  },
+  {
+    "subject": "Data Structures",
+    "title": "Array data structure",
+    "timestamp": "2025-06-22T12:18:19.522Z"
+>>>>>>> e2bbb3e36fe4f6ddaf110528e3cb057efa9f6ceb
   }
 ]

@@ -5,6 +5,7 @@ import Navbar from './Navbar';
 import Home from './Home';
 import ContentList from './ContentList';
 import QuizList from './QuizList';
+import Quiz from './Quiz';
 import Report from './Report';
 import Collaboration from './Collaboration';
 import Login from './Login';
@@ -22,8 +23,7 @@ import { AuthProvider, useAuth } from './AuthContext.jsx';
 
 // 🔹 Inner component to handle routing after login
 function AppRoutes() {
-  const { user, login } = useAuth();
-  const { logout } = useAuth();
+  const { user, login, logout } = useAuth();
   const navigate = useNavigate();
   const isTeacher = user?.role === 'teacher';
 
@@ -55,10 +55,10 @@ function AppRoutes() {
             {!isTeacher && (
               <>
                 <Route path="/lessons" element={<Lessons />} />
-                <Route path="/quizzes" element={<QuizList token={user} role={user} />} />
-                <Route path="/tutor" element={<AiTutorChat token={user} />} />
+                <Route path="/quizzes" element={<QuizList />} />
+                <Route path="/tutor" element={<AiTutorChat />} />
+                <Route path="/report" element={<Report />} />           
                 <Route path="/collaboration" element={<Collaboration />} />
-                <Route path="/report" element={<Report />} />
               </>
             )}
             
@@ -71,7 +71,7 @@ function AppRoutes() {
               </>
             )}
             
-            {/* Catch-all */}
+            {/* Fallback for any other route */}
             <Route path="*" element={<Navigate to="/" />} />
           </>
         )}

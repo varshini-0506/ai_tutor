@@ -1,14 +1,21 @@
 Flask
 Flask-Cors
+Flask-JWT-Extended
 psycopg2-binary
 python-dotenv
 bcrypt
+<<<<<<< HEAD
 flask-jwt-extended
+=======
+>>>>>>> e2bbb3e36fe4f6ddaf110528e3cb057efa9f6ceb
 requests
 transformers
 youtube-transcript-api
 Pillow
 pytesseract
+<<<<<<< HEAD
 reportlab
 matplotlib
 numpy
+=======
+>>>>>>> e2bbb3e36fe4f6ddaf110528e3cb057efa9f6ceb
