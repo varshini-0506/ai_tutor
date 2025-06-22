@@ -3,3 +3,12 @@ Flask-Cors
 psycopg2-binary
 python-dotenv
 bcrypt
+flask-jwt-extended
+requests
+transformers
+youtube-transcript-api
+Pillow
+pytesseract
+reportlab
+matplotlib
+numpy

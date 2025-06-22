@@ -1,103 +1,224 @@
-import { Bar, Doughnut, Line } from 'react-chartjs-2';
-import { Chart, CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Tooltip, Legend } from 'chart.js';
+import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import { Chart, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement } from 'chart.js';
+import { useAuth } from './AuthContext.jsx';
+import { Pie, Bar, Doughnut, Line } from 'react-chartjs-2';
+
 Chart.register(CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Tooltip, Legend);
 
 export default function Report() {
-  // Default/mock data
-  const subjects = ['Data Structures', 'OS', 'DBMS', 'Networks', 'AI', 'ML'];
-  const subjectScores = [88, 76, 92, 81, 67, 95];
-  const topicCompletion = [12, 9, 14, 10, 7, 15];
-  const totalTopics = [15, 12, 15, 12, 10, 15];
-  const activityDates = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const activityCounts = [2, 4, 3, 5, 6, 2, 1];
+  const { user } = useAuth();
+  const role = user ? user.role : null;
+  console.log(`Report component is rendering for role: "${role}"`);
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '2rem' }}>
-      <h2 style={{ textAlign: 'center', marginBottom: 32 }}>📈 Super Duper Progress Report</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, marginBottom: 40 }}>
-        {/* Bar Chart: Subject Scores */}
-        <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', padding: 24 }}>
-          <h3 style={{ textAlign: 'center', marginBottom: 16 }}>Subject Mastery</h3>
-          <Bar
-            data={{
-              labels: subjects,
-              datasets: [{
-                label: 'Score (%)',
-                data: subjectScores,
-                backgroundColor: [
-                  '#a5d8ff', '#b2f2bb', '#ffd6a5', '#d0bfff', '#ffb5e8', '#b5ead7'
-                ],
-                borderRadius: 8,
-              }],
-            }}
-            options={{
-              responsive: true,
-              plugins: { legend: { display: false } },
-              scales: { y: { min: 0, max: 100, ticks: { stepSize: 20 } } },
-            }}
-            height={220}
-          />
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem' }}>
+      {role !== 'teacher' &&
+        <h2 style={{ textAlign: 'center', marginBottom: 32 }}>
+          📊 Your Learning Progress Report
+        </h2>
+      }
+      
+      {role === 'teacher' && (
+        <div>
+          <h2 style={{ textAlign: 'center', marginBottom: 32 }}>
+            📊 Student Reports Dashboard
+          </h2>
+          
+          {/* Teacher-specific report list */}
+          <TeacherReportList />
         </div>
-        {/* Doughnut Chart: Topic Completion */}
-        <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', padding: 24 }}>
-          <h3 style={{ textAlign: 'center', marginBottom: 16 }}>Topic Completion</h3>
-          <Doughnut
-            data={{
-              labels: subjects,
-              datasets: [{
-                label: 'Topics Completed',
-                data: topicCompletion,
-                backgroundColor: [
-                  '#a5d8ff', '#b2f2bb', '#ffd6a5', '#d0bfff', '#ffb5e8', '#b5ead7'
-                ],
-                borderWidth: 2,
-              }],
-            }}
-            options={{
-              cutout: '70%',
-              plugins: {
-                legend: { position: 'bottom' },
-              },
-            }}
-            height={220}
-          />
-          <div style={{ textAlign: 'center', marginTop: 12, fontWeight: 500, color: '#222' }}>
-            {subjects.map((s, i) => (
-              <div key={s} style={{ fontSize: 14 }}>
-                {s}: {topicCompletion[i]} / {totalTopics[i]} topics
+      )}
+      
+      {role !== 'teacher' && (
+        <div>
+          {/* Student-specific report view */}
+          <StudentReportView />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeacherReportList() {
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
+  const fetchReports = async () => {
+    try {
+      const token = sessionStorage.getItem('token');
+      const response = await axios.get('http://localhost:5000/api/reports', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setReports(response.data);
+    } catch (error) {
+      setMessage(`❌ Error loading reports: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const viewReportInModal = (report) => {
+    window.open(`http://localhost:5000/api/view-report/${report.id}`, '_blank');
+  };
+
+  const downloadReport = async (reportId) => {
+    try {
+      const response = await axios.get(`http://localhost:5000/api/download-report/${reportId}`, {
+        responseType: 'blob'
+      });
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `report_${reportId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      setMessage(`❌ Download error: ${error.response?.data?.error || error.message}`);
+    }
+  };
+
+  const deleteReport = async (reportId) => {
+    if (!window.confirm('Are you sure you want to delete this report?')) return;
+    
+    try {
+      const token = sessionStorage.getItem('token');
+      await axios.delete(`http://localhost:5000/api/reports/${reportId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setReports(reports.filter(r => r.id !== reportId));
+      setMessage('✅ Report deleted successfully');
+    } catch (error) {
+      setMessage(`❌ Delete error: ${error.response?.data?.error || error.message}`);
+    }
+  };
+
+  if (loading) return <div>Loading reports...</div>;
+  if (message) return <div style={{ color: message.includes('❌') ? 'red' : 'green', marginBottom: 16 }}>{message}</div>;
+
+  return (
+    <div>
+      {reports.length === 0 ? (
+        <div className="no-reports-message">
+          <p>No reports found. Reports will appear here once students complete their assessments.</p>
+        </div>
+      ) : (
+        <div className="report-grid">
+          {reports.map((report) => (
+            <div key={report.id} className="report-card">
+              <div className="report-card-header">
+                <h4>📊 {report.student_name}</h4>
+                <span>{new Date(report.created_at).toLocaleDateString()}</span>
               </div>
-            ))}
-          </div>
+              <p className="report-card-summary">
+                {report.remarks ? `Remark: "${report.remarks}"` : "No remarks added yet."}
+              </p>
+              <div className="report-card-actions">
+                <button onClick={() => viewReportInModal(report)} className="btn-view">
+                  👁️ View
+                </button>
+                <button onClick={() => downloadReport(report.id)} className="btn-download">
+                  📥 Download
+                </button>
+                <button onClick={() => deleteReport(report.id)} className="btn-delete">
+                  🗑️ Delete
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
-      {/* Line Chart: Activity Over Time */}
-      <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', padding: 24, marginBottom: 32 }}>
-        <h3 style={{ textAlign: 'center', marginBottom: 16 }}>Weekly Activity</h3>
-        <Line
-          data={{
-            labels: activityDates,
-            datasets: [{
-              label: 'Lessons/Quizzes Completed',
-              data: activityCounts,
-              fill: true,
-              borderColor: '#4f8cff',
-              backgroundColor: 'rgba(79,140,255,0.12)',
-              tension: 0.4,
-              pointRadius: 5,
-              pointBackgroundColor: '#4f8cff',
-            }],
-          }}
-          options={{
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: { y: { min: 0, max: 8, ticks: { stepSize: 2 } } },
-          }}
-          height={180}
-        />
-      </div>
-      <div style={{ textAlign: 'center', color: '#4a4e69', fontWeight: 600, fontSize: 18 }}>
-        🚀 Keep up the great work! Your learning journey is on fire!
-      </div>
+      )}
+    </div>
+  );
+}
+
+function StudentReportView() {
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    fetchStudentReports();
+  }, []);
+
+  const fetchStudentReports = async () => {
+    try {
+      const token = sessionStorage.getItem('token');
+      const response = await axios.get('http://localhost:5000/api/student-reports', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setReports(response.data);
+    } catch (error) {
+      setMessage(`❌ Error loading reports: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const downloadReport = async (reportId) => {
+    try {
+      const response = await axios.get(`http://localhost:5000/api/download-report/${reportId}`, {
+        responseType: 'blob'
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `my_report_${reportId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      setMessage(`❌ Download error: ${error.response?.data?.error || error.message}`);
+    }
+  };
+
+  if (loading) return <div>Loading your reports...</div>;
+  if (message) return <div style={{ color: message.includes('❌') ? 'red' : 'green', marginBottom: 16 }}>{message}</div>;
+
+  return (
+    <div>
+      {reports.length === 0 ? (
+        <div className="no-reports-message">
+          <p>No reports available yet. Complete some quizzes to generate your first report!</p>
+        </div>
+      ) : (
+        <div>
+          {reports.map((report) => (
+            <div key={report.id} className="student-report-item">
+              <div className="report-info">
+                <h4>📊 Progress Report - {new Date(report.created_at).toLocaleDateString()}</h4>
+                <span className="report-date">Generated on {new Date(report.created_at).toLocaleString()}</span>
+              </div>
+              
+              {report.remarks && (
+                <div className="teacher-remark">
+                  <h5>💬 Teacher's Remark:</h5>
+                  <div className="remark-bubble">
+                    <p>{report.remarks}</p>
+                  </div>
+                </div>
+              )}
+              
+              <div className="report-actions">
+                <button onClick={() => downloadReport(report.id)} className="btn-download">
+                  📥 Download Report
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 } 

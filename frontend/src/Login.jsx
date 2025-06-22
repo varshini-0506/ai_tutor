@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from './AuthContext.jsx';
 
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
@@ -10,20 +11,35 @@ export default function Login({ onLogin }) {
   const [showSignUp, setShowSignUp] = useState(false);
   const [success, setSuccess] = useState('');
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async e => {
     e.preventDefault();
-    const res = await fetch('http://127.0.0.1:5000/api/login', {
+    console.log('Attempting login with:', { username, password });
+    
+    const res = await fetch('http://127.0.0.1:5000/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
+    
+    console.log('Login response status:', res.status);
+    
     if (res.ok) {
       const data = await res.json();
-      onLogin(data.access_token, data.role);
+      console.log('Login response data:', data);
+      console.log('Access token:', data.access_token);
+      console.log('Token length:', data.access_token ? data.access_token.length : 0);
+      
+      // Store username in sessionStorage for the Report component
+      sessionStorage.setItem('username', username);
+      
+      onLogin(data.access_token, data.role, username);
       navigate('/');
     } else {
-      setError('Invalid credentials');
+      const errorData = await res.json();
+      console.error('Login error:', errorData);
+      setError(errorData.msg || 'Invalid credentials');
     }
   };
 
@@ -35,21 +51,23 @@ export default function Login({ onLogin }) {
       setError('Passwords do not match');
       return;
     }
-    const res = await fetch('http://127.0.0.1:5000/api/register', {
+    const res = await fetch('http://127.0.0.1:5000/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password, role })
     });
     if (res.ok) {
       // Auto-login after successful registration
-      const loginRes = await fetch('http://127.0.0.1:5000/api/login', {
+      const loginRes = await fetch('http://127.0.0.1:5000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
       });
       if (loginRes.ok) {
         const data = await loginRes.json();
-        onLogin(data.access_token, data.role);
+        // Store username in sessionStorage for the Report component
+        sessionStorage.setItem('username', username);
+        onLogin(data.access_token, data.role, username);
         navigate('/');
       } else {
         setSuccess('Registration successful! Please log in.');

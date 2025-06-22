@@ -1,52 +1,68 @@
 from flask import Blueprint, request, jsonify
-from db import conn, cursor
+from flask_jwt_extended import create_access_token
 import bcrypt
 
 auth = Blueprint('auth', __name__)
 
+# Import users from main app to avoid conflicts
+# This will be set by the main app
+users = None
+
+def set_users(user_list):
+    global users
+    users = user_list
+
 @auth.route('/signup', methods=['POST'])
 def signup():
+    if not users:
+        return jsonify({'msg': 'Users not initialized'}), 500
+        
     data = request.json
-    name = data.get('name')
-    email = data.get('email')
+    username = data.get('username')
     password = data.get('password')
-    role = data.get('role', 'student')  # default to 'student' if not provided
+    role = data.get('role', 'student')
 
-    cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
-    if cursor.fetchone():
-        return jsonify({'msg': 'Email already exists'}), 400
+    if not username or not password:
+        return jsonify({'msg': 'Username and password are required'}), 400
 
-    hashed_pw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    # Check if user already exists
+    if any(u["username"] == username for u in users):
+        return jsonify({'msg': 'Username already exists'}), 400
 
-    cursor.execute(
-        "INSERT INTO users (name, email, password, role) VALUES (%s, %s, %s, %s)",
-        (name, email, hashed_pw, role)
-    )
-    conn.commit()
+    # Add new user
+    users.append({"username": username, "password": password, "role": role})
+    
     return jsonify({'msg': 'Signup successful'}), 200
-
 
 @auth.route('/login', methods=['POST'])
 def login():
+    if not users:
+        return jsonify({'msg': 'Users not initialized'}), 500
+        
     data = request.json
-    email = data.get('email')
+    username = data.get('username')
     password = data.get('password')
 
-    cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
-    user = cursor.fetchone()
+    if not username or not password:
+        return jsonify({'msg': 'Username and password are required'}), 400
 
-    if user is None:
+    # Find user
+    user = next((u for u in users if u["username"] == username and u["password"] == password), None)
+    
+    if not user:
         return jsonify({'msg': 'Invalid credentials'}), 400
 
-    stored_hash = user[2]  # assuming columns: id, email, password, name, role
-
-    if not bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')):
-        return jsonify({'msg': 'Invalid credentials'}), 400
-
-    user_data = {
-        'id': user[0],
-        'email': user[1],
-        'name': user[3],
-        'role': user[4]
-    }
-    return jsonify({'msg': 'Login successful', 'user': user_data}), 200
+    # Create JWT token with string identity and role in claims
+    access_token = create_access_token(identity=user["username"], additional_claims={"role": user["role"]})
+    
+    print(f"Generated JWT token for {username}: {access_token[:20]}...")
+    
+    return jsonify({
+        'msg': 'Login successful',
+        'access_token': access_token,
+        'role': user["role"],
+        'user': {
+            'username': user["username"],
+            'role': user["role"]
+        }
+    }), 200
