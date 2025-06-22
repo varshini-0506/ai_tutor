@@ -3,6 +3,11 @@ from flask_cors import CORS
 import requests
 import json
 import os
+
+# Set matplotlib backend before importing matplotlib.pyplot to avoid Tkinter issues
+import matplotlib
+matplotlib.use('Agg')
+
 from auth_routes import auth, set_users
 from transformers import pipeline
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
@@ -385,18 +390,66 @@ def get_reports():
 
         if user_role == 'teacher':
             reports = report_db.get_all_reports()
+            formatted_reports = []
+            for report in reports:
+                formatted_reports.append({
+                    'id': report[0],
+                    'student_name': report[1],
+                    'created_at': report[4],
+                    'pdf_path': report[3],
+                    'remarks': report[8] if len(report) > 8 else None
+                })
         else:
-            reports = report_db.get_reports_by_student(username)
-
-        formatted_reports = []
-        for report in reports:
-            formatted_reports.append({
-                'id': report[0],
-                'student_name': report[1],
-                'created_at': report[4],
-                'pdf_path': report[3],
-                'remarks': report[8] if len(report) > 8 else None
-            })
+            # For students, always return a default report
+            # First check if there's already a default report for this student
+            student_reports = report_db.get_reports_by_student(username)
+            
+            if student_reports:
+                # Use existing report
+                report = student_reports[0]
+                formatted_reports = [{
+                    'id': report[0],
+                    'student_name': report[1],
+                    'created_at': report[4],
+                    'pdf_path': report[3],
+                    'remarks': report[8] if len(report) > 8 else None
+                }]
+            else:
+                # Create a default report for this student
+                if not os.path.exists('reports'):
+                    os.makedirs('reports')
+                
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                filename = f"report_{username}_{timestamp}.pdf"
+                pdf_path = os.path.join('reports', filename)
+                
+                # Generate charts and rich data for the PDF
+                charts = create_dummy_charts()
+                report_data = {
+                    "subject_scores": {"Math": 85, "Science": 78, "History": 92, "English": 88},
+                    "topic_completion": {"Algebra": 8, "Biology": 6, "World War II": 9, "Shakespeare": 7},
+                    "activity_data": {"Mon": 3, "Tue": 5, "Wed": 4, "Thu": 6, "Fri": 7, "Sat": 2, "Sun": 1},
+                    "total_views": 28
+                }
+                
+                pdf_generator.generate_report_pdf(username, report_data, pdf_path, charts=charts)
+                
+                report_id = report_db.save_report(
+                    student_name=username,
+                    report_data=json.dumps(report_data),
+                    pdf_path=pdf_path,
+                    subject_scores=json.dumps(report_data["subject_scores"]),
+                    topic_completion=json.dumps(report_data["topic_completion"]),
+                    activity_data=json.dumps(report_data["activity_data"])
+                )
+                
+                formatted_reports = [{
+                    'id': report_id,
+                    'student_name': username,
+                    'created_at': datetime.now().isoformat(),
+                    'pdf_path': pdf_path,
+                    'remarks': None
+                }]
         
         return jsonify(formatted_reports)
         

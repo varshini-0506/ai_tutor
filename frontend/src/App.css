@@ -44,13 +44,13 @@
 body {
   margin: 0;
   font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-  background: #f4f6fa;
-  color: #222;
+  background: #f1f5f9;
+  color: #1e293b;
 }
 
 h1, h2, h3 {
   font-weight: 700;
-  color: #22223b;
+  color: #1e293b;
 }
 
 input, select, button, textarea {
@@ -59,17 +59,17 @@ input, select, button, textarea {
 }
 
 a {
-  color: #007bff;
+  color: #1e40af;
   text-decoration: none;
   transition: color 0.2s;
 }
 
 a:hover {
-  color: #0056b3;
+  color: #1e3a8a;
 }
 
 button {
-  background: linear-gradient(90deg, #007bff 60%, #4a4e69 100%);
+  background: linear-gradient(90deg, #1e40af 60%, #1e3a8a 100%);
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -81,7 +81,7 @@ button {
 }
 
 button:hover {
-  background: #0056b3;
+  background: #1e3a8a;
   box-shadow: 0 2px 8px rgba(0,0,0,0.12);
 }
 
@@ -107,8 +107,8 @@ button:hover {
 
 .dashboard-card h3 {
   margin-top: 0;
-  color: #007bff;
-  border-bottom: 2px solid #e9ecef;
+  color: #1e40af;
+  border-bottom: 2px solid #e2e8f0;
   padding-bottom: 0.5rem;
 }
 
@@ -119,7 +119,7 @@ button:hover {
 
 .dashboard-card li {
   padding: 0.5rem 0;
-  border-bottom: 1px solid #f8f9fa;
+  border-bottom: 1px solid #f8fafc;
 }
 
 .dashboard-card li:last-child {
@@ -170,7 +170,7 @@ button:hover {
 .content-card h3,
 .quiz-card h3,
 .class-card h3 {
-  color: #007bff;
+  color: #1e40af;
   margin-top: 0;
   margin-bottom: 0.5rem;
 }
@@ -179,13 +179,13 @@ button:hover {
 .content-card p,
 .quiz-card p,
 .class-card p {
-  color: #666;
+  color: #64748b;
   margin-bottom: 1rem;
   line-height: 1.5;
 }
 
 .btn-primary {
-  background: linear-gradient(90deg, #007bff 60%, #4a4e69 100%);
+  background: linear-gradient(90deg, #1e40af 60%, #1e3a8a 100%);
   color: white;
   border: none;
   border-radius: 6px;
@@ -197,13 +197,13 @@ button:hover {
 }
 
 .btn-primary:hover {
-  background: #0056b3;
+  background: #1e3a8a;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .btn-secondary {
-  background: #6c757d;
+  background: #64748b;
   color: white;
   border: none;
   border-radius: 6px;
@@ -215,7 +215,7 @@ button:hover {
 }
 
 .btn-secondary:hover {
-  background: #5a6268;
+  background: #475569;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
@@ -238,7 +238,7 @@ button:hover {
 }
 
 .teacher-welcome-banner {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
   color: white;
   padding: 2rem;
   border-radius: 12px;
@@ -259,7 +259,7 @@ button:hover {
 
 .no-reports-message {
   text-align: center;
-  color: #666;
+  color: #64748b;
   font-style: italic;
 }
 
@@ -275,7 +275,7 @@ button:hover {
   padding: 1.5rem;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   transition: transform 0.2s, box-shadow 0.2s;
-  border: 1px solid #e9ecef;
+  border: 1px solid #e2e8f0;
 }
 
 .report-card:hover {
@@ -289,25 +289,25 @@ button:hover {
   align-items: center;
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
-  border-bottom: 2px solid #f8f9fa;
+  border-bottom: 2px solid #f8fafc;
 }
 
 .report-card-header h4 {
   margin: 0;
-  color: #22223b;
+  color: #1e293b;
   font-weight: 700;
 }
 
 .report-card-header span {
-  color: #6c757d;
+  color: #64748b;
   font-size: 0.9rem;
-  background: #f8f9fa;
+  background: #f8fafc;
   padding: 0.25rem 0.75rem;
   border-radius: 20px;
 }
 
 .report-card-summary {
-  color: #495057;
+  color: #475569;
   margin-bottom: 1.5rem;
   line-height: 1.6;
   font-style: italic;
@@ -329,9 +329,9 @@ button:hover {
   font-weight: 500;
 }
 
-.report-card-actions .btn-view { background-color: #17a2b8; }
-.report-card-actions .btn-download { background-color: #28a745; }
-.report-card-actions .btn-delete { background-color: #dc3545; }
+.report-card-actions .btn-view { background-color: #0ea5e9; }
+.report-card-actions .btn-download { background-color: #10b981; }
+.report-card-actions .btn-delete { background-color: #ef4444; }
 
 .report-card-actions button:hover {
   transform: translateY(-1px);
@@ -368,7 +368,7 @@ button:hover {
 }
 
 .modal-header {
-  background: #22223b;
+  background: #1e293b;
   color: white;
   padding: 1.5rem;
   display: flex;
@@ -412,7 +412,7 @@ button:hover {
 .pdf-viewer {
   width: 100%;
   height: 500px;
-  border: 1px solid #e9ecef;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
 }
 
@@ -425,11 +425,11 @@ button:hover {
 .remarks-section {
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 2px solid #f8f9fa;
+  border-top: 2px solid #f8fafc;
 }
 
 .remarks-section h4 {
-  color: #22223b;
+  color: #1e293b;
   margin-bottom: 1rem;
 }
 
@@ -437,7 +437,7 @@ button:hover {
   width: 100%;
   min-height: 100px;
   padding: 1rem;
-  border: 2px solid #e9ecef;
+  border: 2px solid #e2e8f0;
   border-radius: 8px;
   font-family: inherit;
   font-size: 0.9rem;
@@ -447,11 +447,11 @@ button:hover {
 
 .remarks-section textarea:focus {
   outline: none;
-  border-color: #007bff;
+  border-color: #1e40af;
 }
 
 .remarks-section .btn-save-remark {
-  background: #28a745;
+  background: #10b981;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -478,7 +478,7 @@ button:hover {
 }
 
 .report-date {
-  color: #6c757d;
+  color: #64748b;
   font-size: 0.9rem;
 }
 
@@ -487,19 +487,20 @@ button:hover {
   gap: 0.5rem;
 }
 
-.report-actions .btn-download { background-color: #28a745; }
-.report-actions .btn-delete { background-color: #dc3545; }
+.report-actions .btn-view { background-color: #0ea5e9; }
+.report-actions .btn-download { background-color: #10b981; }
+.report-actions .btn-delete { background-color: #ef4444; }
 
 .teacher-remark {
-  background: #f8f9fa;
-  border-left: 4px solid #007bff;
+  background: #f8fafc;
+  border-left: 4px solid #1e40af;
   padding: 1rem;
   margin-top: 1rem;
   border-radius: 0 8px 8px 0;
 }
 
 .remark-bubble {
-  background: #e3f2fd;
+  background: #dbeafe;
   border-radius: 12px;
   padding: 1rem;
   margin-top: 1rem;
@@ -508,7 +509,7 @@ button:hover {
 
 .teacher-remark p {
   margin: 0;
-  color: #1976d2;
+  color: #1e40af;
   font-weight: 500;
 }
 
@@ -516,7 +517,7 @@ button:hover {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
-  background: #f4f6fa;
+  background: #f1f5f9;
   border-radius: 16px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.05);
 }
@@ -525,7 +526,7 @@ button:hover {
   text-align: center;
   font-size: 2.2rem;
   font-weight: 800;
-  color: #22223b;
+  color: #1e293b;
   margin-bottom: 2.5rem;
   position: relative;
 }
@@ -535,7 +536,7 @@ button:hover {
   display: block;
   width: 60px;
   height: 4px;
-  background: linear-gradient(90deg, #1976d2 60%, #007bff 100%);
+  background: linear-gradient(90deg, #1e40af 60%, #1e3a8a 100%);
   border-radius: 2px;
   margin: 12px auto 0 auto;
 }
@@ -556,8 +557,8 @@ button:hover {
 }
 
 .student-management th {
-  background: #f8f9fa;
-  color: #22223b;
+  background: #f8fafc;
+  color: #1e293b;
   font-weight: 700;
 }
 
@@ -567,15 +568,15 @@ button:hover {
 }
 
 .student-management tbody tr:nth-child(even) {
-  background: #f8f9fa;
+  background: #f8fafc;
 }
 
 .student-management tbody tr:hover {
-  background: #f1f3f5;
+  background: #e2e8f0;
 }
 
 .student-management td {
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .student-management tbody tr:last-child td {
@@ -593,14 +594,14 @@ button:hover {
 }
 
 .student-management tbody tr:hover::before {
-  background: linear-gradient(90deg, #1976d2 60%, #007bff 100%);
+  background: linear-gradient(90deg, #1e40af 60%, #1e3a8a 100%);
 }
 
 .student-avatar-sm {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -619,7 +620,7 @@ button:hover {
 }
 
 .modal-header {
-  background: #22223b;
+  background: #1e293b;
   color: white;
   padding: 1.5rem;
   border-top-left-radius: 16px;
@@ -643,7 +644,7 @@ button:hover {
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -656,7 +657,7 @@ button:hover {
 
 .modal-body p {
   margin: 1rem 0;
-  color: #495057;
+  color: #475569;
   font-size: 1.1rem;
   line-height: 1.6;
 }
@@ -696,7 +697,7 @@ button:hover {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
-  background: #f4f6fa;
+  background: #f1f5f9;
   border-radius: 16px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.05);
 }
@@ -705,7 +706,7 @@ button:hover {
   text-align: center;
   font-size: 2.2rem;
   font-weight: 800;
-  color: #22223b;
+  color: #1e293b;
   margin-bottom: 2.5rem;
   position: relative;
 }
@@ -715,7 +716,7 @@ button:hover {
   display: block;
   width: 60px;
   height: 4px;
-  background: linear-gradient(90deg, #1976d2 60%, #007bff 100%);
+  background: linear-gradient(90deg, #1e40af 60%, #1e3a8a 100%);
   border-radius: 2px;
   margin: 12px auto 0 auto;
 }
@@ -728,12 +729,12 @@ button:hover {
 }
 
 .accordion-item {
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #e2e8f0;
   transition: all 0.3s ease;
 }
 
 .accordion-item.open {
-  background: #f8f9fa;
+  background: #f8fafc;
 }
 
 .accordion-header {
@@ -744,7 +745,7 @@ button:hover {
   text-align: left;
   font-size: 1.2rem;
   font-weight: 600;
-  color: #22223b;
+  color: #1e293b;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
@@ -753,13 +754,13 @@ button:hover {
 }
 
 .accordion-header:hover, .accordion-header:focus {
-  background: #f8f9fa;
+  background: #f8fafc;
 }
 
 .accordion-icon {
   font-size: 1.2rem;
   transition: transform 0.3s ease;
-  color: #007bff;
+  color: #1e40af;
 }
 
 .accordion-icon.open {
@@ -784,8 +785,8 @@ button:hover {
 }
 
 .topic-chip {
-  background: #e3f2fd;
-  color: #1976d2;
+  background: #dbeafe;
+  color: #1e40af;
   padding: 0.5rem 1rem;
   border-radius: 20px;
   font-size: 0.9rem;
@@ -794,11 +795,11 @@ button:hover {
   align-items: center;
   gap: 0.5rem;
   transition: all 0.2s;
-  border: 1px solid #bbdefb;
+  border: 1px solid #bfdbfe;
 }
 
 .topic-chip .chip-delete {
-  background: #f44336;
+  background: #ef4444;
   color: white;
   border: none;
   border-radius: 50%;
@@ -813,12 +814,12 @@ button:hover {
 }
 
 .topic-chip .chip-delete:hover {
-  background: #d32f2f;
+  background: #dc2626;
   transform: scale(1.1);
 }
 
 .add-topic-fab {
-  background: linear-gradient(90deg, #1976d2 60%, #007bff 100%);
+  background: linear-gradient(90deg, #1e40af 60%, #1e3a8a 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -834,21 +835,21 @@ button:hover {
 
 .add-topic-fab:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+  box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);
 }
 
 .add-topic-form {
-  background: #f8f9fa;
+  background: #f8fafc;
   border-radius: 8px;
   padding: 1.5rem;
   margin-top: 1rem;
-  border: 2px dashed #dee2e6;
+  border: 2px dashed #cbd5e1;
 }
 
 .add-topic-form input {
   width: 100%;
   padding: 0.75rem;
-  border: 2px solid #e9ecef;
+  border: 2px solid #e2e8f0;
   border-radius: 6px;
   font-size: 0.9rem;
   margin-bottom: 0.75rem;
@@ -857,11 +858,11 @@ button:hover {
 
 .add-topic-form input:focus {
   outline: none;
-  border-color: #007bff;
+  border-color: #1e40af;
 }
 
 .add-topic-form button {
-  background: #28a745;
+  background: #10b981;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -873,7 +874,7 @@ button:hover {
 }
 
 .add-topic-form button:hover {
-  background: #218838;
+  background: #059669;
   transform: translateY(-1px);
 }
 
