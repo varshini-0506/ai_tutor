@@ -6,7 +6,6 @@ export default function Navbar({ role, onLogout, isLoggedIn }) {
     <nav className="navbar">
       {isLoggedIn && <Link to="/">Home</Link>}
       {isLoggedIn && <Link to="/content">Content</Link>}
-      {isLoggedIn && <Link to="/quizzes">Quizzes</Link>}
       {isLoggedIn && <Link to="/quiz">Take Quiz</Link>}
       {isLoggedIn && <Link to="/ai-tutor">AI Tutor</Link>}
       {isLoggedIn && <Link to="/report">Report</Link>}

@@ -404,13 +404,49 @@ export default function Collaboration({ token, role }) {
 
   const loadSubjects = async () => {
     try {
+      console.log('Loading subjects...');
       const response = await fetch('http://127.0.0.1:5000/api/subjects');
+      console.log('Subjects response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Loaded subjects:', data);
         setSubjects(data);
+      } else {
+        console.error('Failed to load subjects from API');
+        // Fallback to hardcoded subjects if API fails
+        const fallbackSubjects = [
+          'Data Structures',
+          'Operating Systems',
+          'Database Management Systems',
+          'Computer Networks',
+          'Computer Organization & Architecture',
+          'Software Engineering',
+          'Theory of Computation',
+          'Compiler Design',
+          'Artificial Intelligence',
+          'Machine Learning'
+        ];
+        console.log('Using fallback subjects:', fallbackSubjects);
+        setSubjects(fallbackSubjects);
       }
     } catch (err) {
       console.error('Failed to load subjects:', err);
+      // Fallback to hardcoded subjects if API fails
+      const fallbackSubjects = [
+        'Data Structures',
+        'Operating Systems',
+        'Database Management Systems',
+        'Computer Networks',
+        'Computer Organization & Architecture',
+        'Software Engineering',
+        'Theory of Computation',
+        'Compiler Design',
+        'Artificial Intelligence',
+        'Machine Learning'
+      ];
+      console.log('Using fallback subjects due to error:', fallbackSubjects);
+      setSubjects(fallbackSubjects);
     }
   };
 
@@ -756,9 +792,13 @@ export default function Collaboration({ token, role }) {
                 required
               >
                 <option value="">Select Subject</option>
-                {subjects.map(subject => (
-                  <option key={subject} value={subject}>{subject}</option>
-                ))}
+                {subjects.length > 0 ? (
+                  subjects.map(subject => (
+                    <option key={subject} value={subject}>{subject}</option>
+                  ))
+                ) : (
+                  <option value="" disabled>Loading subjects...</option>
+                )}
               </select>
               <input
                 type="number"
@@ -824,9 +864,13 @@ export default function Collaboration({ token, role }) {
                   required
                 >
                   <option value="">Select Subject</option>
-                  {subjects.map(subject => (
-                    <option key={subject} value={subject}>{subject}</option>
-                  ))}
+                  {subjects.length > 0 ? (
+                    subjects.map(subject => (
+                      <option key={subject} value={subject}>{subject}</option>
+                    ))
+                  ) : (
+                    <option value="" disabled>Loading subjects...</option>
+                  )}
                 </select>
                 
                 {isGeneratingQuiz && (

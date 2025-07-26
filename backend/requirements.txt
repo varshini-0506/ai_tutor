@@ -9,3 +9,4 @@ transformers
 youtube-transcript-api
 Pillow
 pytesseract
+reportlab

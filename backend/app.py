@@ -15,6 +15,14 @@ import base64
 import io
 import pytesseract
 from datetime import datetime, timedelta
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from io import BytesIO
+import base64
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
@@ -646,6 +654,190 @@ def register():
         return jsonify({"msg": "Username already exists"}), 409
     users.append({"username": username, "password": password, "role": role})
     return jsonify({"msg": "User registered successfully"}), 201
+
+@app.route('/api/generate-report-pdf', methods=['POST'])
+def generate_report_pdf():
+    """Generate a PDF report of student progress"""
+    try:
+        data = request.get_json()
+        
+        # Get report data from request
+        subjects = data.get('subjects', [])
+        subject_scores = data.get('subjectScores', [])
+        topic_completion = data.get('topicCompletion', [])
+        total_topics = data.get('totalTopics', [])
+        activity_dates = data.get('activityDates', [])
+        activity_counts = data.get('activityCounts', [])
+        student_name = data.get('studentName', 'Student')
+        
+        # Create PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        story = []
+        
+        # Get styles
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            spaceAfter=30,
+            alignment=TA_CENTER,
+            textColor=colors.darkblue
+        )
+        
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=16,
+            spaceAfter=12,
+            textColor=colors.darkblue
+        )
+        
+        normal_style = styles['Normal']
+        
+        # Title
+        story.append(Paragraph(f"📈 Progress Report - {student_name}", title_style))
+        story.append(Spacer(1, 20))
+        
+        # Date
+        current_date = datetime.now().strftime("%B %d, %Y")
+        story.append(Paragraph(f"Generated on: {current_date}", normal_style))
+        story.append(Spacer(1, 20))
+        
+        # Subject Mastery Section
+        story.append(Paragraph("Subject Mastery", heading_style))
+        story.append(Spacer(1, 10))
+        
+        # Create subject mastery table
+        subject_data = [['Subject', 'Score (%)', 'Status']]
+        for i, subject in enumerate(subjects):
+            score = subject_scores[i] if i < len(subject_scores) else 0
+            status = "Excellent" if score >= 90 else "Good" if score >= 80 else "Average" if score >= 70 else "Needs Improvement"
+            subject_data.append([subject, str(score), status])
+        
+        subject_table = Table(subject_data, colWidths=[2*inch, 1*inch, 1.5*inch])
+        subject_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ]))
+        story.append(subject_table)
+        story.append(Spacer(1, 20))
+        
+        # Topic Completion Section
+        story.append(Paragraph("Topic Completion", heading_style))
+        story.append(Spacer(1, 10))
+        
+        # Create topic completion table
+        topic_data = [['Subject', 'Completed', 'Total', 'Progress (%)']]
+        for i, subject in enumerate(subjects):
+            completed = topic_completion[i] if i < len(topic_completion) else 0
+            total = total_topics[i] if i < len(total_topics) else 0
+            progress = round((completed / total * 100) if total > 0 else 0, 1)
+            topic_data.append([subject, str(completed), str(total), f"{progress}%"])
+        
+        topic_table = Table(topic_data, colWidths=[2*inch, 1*inch, 1*inch, 1*inch])
+        topic_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.darkgreen),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.lightgreen),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ]))
+        story.append(topic_table)
+        story.append(Spacer(1, 20))
+        
+        # Weekly Activity Section
+        story.append(Paragraph("Weekly Activity", heading_style))
+        story.append(Spacer(1, 10))
+        
+        # Create activity table
+        activity_data = [['Day', 'Lessons/Quizzes Completed']]
+        for i, day in enumerate(activity_dates):
+            count = activity_counts[i] if i < len(activity_counts) else 0
+            activity_data.append([day, str(count)])
+        
+        activity_table = Table(activity_data, colWidths=[1.5*inch, 2.5*inch])
+        activity_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.darkred),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.lightcoral),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ]))
+        story.append(activity_table)
+        story.append(Spacer(1, 20))
+        
+        # Summary Section
+        story.append(Paragraph("Summary", heading_style))
+        story.append(Spacer(1, 10))
+        
+        # Calculate summary statistics
+        avg_score = sum(subject_scores) / len(subject_scores) if subject_scores else 0
+        total_completed = sum(topic_completion) if topic_completion else 0
+        total_available = sum(total_topics) if total_topics else 0
+        weekly_activity = sum(activity_counts) if activity_counts else 0
+        
+        overall_progress = (total_completed/total_available*100) if total_available > 0 else 0
+        summary_text = f"""
+        <b>Overall Performance:</b><br/>
+        • Average Subject Score: {avg_score:.1f}%<br/>
+        • Total Topics Completed: {total_completed} out of {total_available}<br/>
+        • Weekly Activity: {weekly_activity} lessons/quizzes completed<br/>
+        • Overall Progress: {overall_progress:.1f}%<br/><br/>
+        
+        <b>Recommendations:</b><br/>
+        • Focus on subjects with lower scores<br/>
+        • Complete more topics in areas of interest<br/>
+        • Maintain consistent weekly activity<br/>
+        • Review completed topics regularly
+        """
+        
+        story.append(Paragraph(summary_text, normal_style))
+        story.append(Spacer(1, 20))
+        
+        # Motivational message
+        motivational_text = "🚀 Keep up the great work! Your learning journey is on fire!"
+        story.append(Paragraph(motivational_text, ParagraphStyle(
+            'Motivational',
+            parent=styles['Normal'],
+            fontSize=14,
+            alignment=TA_CENTER,
+            textColor=colors.darkblue,
+            spaceAfter=20
+        )))
+        
+        # Build PDF
+        doc.build(story)
+        buffer.seek(0)
+        
+        # Convert to base64 for sending to frontend
+        pdf_base64 = base64.b64encode(buffer.getvalue()).decode()
+        
+        return jsonify({
+            'success': True,
+            'pdf_data': pdf_base64,
+            'filename': f'progress_report_{student_name}_{datetime.now().strftime("%Y%m%d")}.pdf'
+        })
+        
+    except Exception as e:
+        print(f"Error generating PDF: {str(e)}")
+        return jsonify({'error': f'Failed to generate PDF: {str(e)}'}), 500
 
 @app.route('/admin')
 def admin_page():
