@@ -10,3 +10,5 @@ youtube-transcript-api
 Pillow
 pytesseract
 reportlab
+matplotlib
+numpy

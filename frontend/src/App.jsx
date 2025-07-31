@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, Link } from 'react-router-dom';
 
 import Navbar from './Navbar';
@@ -12,43 +12,66 @@ import Login from './Login';
 import AiTutorChat from './AiTutorChat';
 
 import Lessons from './components/Lessons';
-import Analytics from './components/Analytics';
+import StudentManagement from './components/StudentManagement';
+import ContentManagement from './components/ContentManagement';
+// QuizManagement and ClassManagement are no longer routed
+// import QuizManagement from './components/QuizManagement';
+// import ClassManagement from './components/ClassManagement';
 
 import './App.css';
+import { AuthProvider, useAuth } from './AuthContext.jsx';
 
 // 🔹 Inner component to handle routing after login
-function AppRoutes({ token, setToken, role, setRole, handleLogout }) {
+function AppRoutes() {
+  const { user, login, logout } = useAuth();
   const navigate = useNavigate();
+  const isTeacher = user?.role === 'teacher';
 
-  const handleLogin = (jwt, userRole, username) => {
-    setToken(jwt);
-    setRole(userRole);
-    localStorage.setItem('username', username);
+  const handleLogin = (token, role, username) => {
+    login(token, role, username);
     navigate('/');
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   return (
     <>
       {/* Navbar only if logged in */}
-      {!!token && <Navbar role={role} onLogout={handleLogout} isLoggedIn={!!token} />}
+      {!!user && <Navbar onLogout={handleLogout} isLoggedIn={!!user} />}
 
       {/* Removed static nav for lessons/analytics */}
 
       <Routes>
-        {!token ? (
+        {!user ? (
           <Route path="*" element={<Login onLogin={handleLogin} />} />
         ) : (
           <>
             <Route path="/" element={<Home />} />
-            <Route path="/content" element={<Lessons />} />
-            <Route path="/quizzes" element={<QuizList token={token} role={role} />} />
-            <Route path="/quiz" element={<Quiz token={token} />} />
-            <Route path="/ai-tutor" element={<AiTutorChat token={token} />} />
-            <Route path="/report" element={<Report />} />
-            <Route path="/collaboration" element={<Collaboration token={token} role={role} />} />
-            {/* Analytics route can remain if needed */}
-            <Route path="/analytics" element={<Analytics />} />
-            {/* Catch-all */}
+            
+            {/* Student-specific routes */}
+            {!isTeacher && (
+              <>
+                <Route path="/lessons" element={<Lessons />} />
+                <Route path="/quizzes" element={<QuizList />} />
+                <Route path="/tutor" element={<AiTutorChat />} />
+                <Route path="/report" element={<Report />} />           
+                <Route path="/collaboration" element={<Collaboration />} />
+              </>
+            )}
+            
+            {/* Teacher-specific routes */}
+            {isTeacher && (
+              <>
+                <Route path="/students" element={<StudentManagement />} />
+                <Route path="/reports" element={<Report />} />
+                <Route path="/content" element={<ContentManagement />} />
+              </>
+            )}
+            
+            {/* Fallback for any other route */}
             <Route path="*" element={<Navigate to="/" />} />
           </>
         )}
@@ -59,24 +82,11 @@ function AppRoutes({ token, setToken, role, setRole, handleLogout }) {
 
 // 🔹 Main wrapper
 function App() {
-  const [token, setToken] = useState(null);
-  const [role, setRole] = useState(null);
-
-  const handleLogout = () => {
-    setToken(null);
-    setRole(null);
-    localStorage.removeItem('username');
-  };
-
   return (
     <Router>
-      <AppRoutes
-        token={token}
-        setToken={setToken}
-        role={role}
-        setRole={setRole}
-        handleLogout={handleLogout}
-      />
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
     </Router>
   );
 }

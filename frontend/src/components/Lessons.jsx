@@ -12,13 +12,13 @@ function Lessons() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    axios.get("http://localhost:5000/api/content")
+    axios.get("http://localhost:5000/api/course-data")
       .then((res) => {
-        console.log("✅ Fetched subject data:", res.data); // Debug
+        console.log("✅ Fetched live course data:", res.data);
         setData(res.data);
       })
       .catch((err) => {
-        console.error("❌ Error fetching content:", err);
+        console.error("❌ Error fetching live course data:", err);
       });
   }, []);
 

@@ -1,8 +1,15 @@
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, send_file
 from flask_cors import CORS
 import requests
 import json
 import os
+
+# Set matplotlib backend before importing matplotlib.pyplot to avoid Tkinter issues
+import matplotlib
+matplotlib.use('Agg')
+
+from auth_routes import auth, set_users
+from transformers import pipeline
 from auth_routes import auth
 from collaboration import collaboration
 from transformers.pipelines import pipeline
@@ -14,6 +21,14 @@ from PIL import Image
 import base64
 import io
 import pytesseract
+from report_db import ReportDatabase
+from pdf_generator import PDFReportGenerator
+from datetime import datetime
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Define this at the top level so all routes can access it
+COURSE_DATA_PATH = os.path.join(os.path.dirname(__file__), 'course_data.json')
 from datetime import datetime, timedelta
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
@@ -27,7 +42,7 @@ import base64
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True, allow_headers=["Authorization", "Content-Type"])
 app.config["JWT_SECRET_KEY"] = "your-secret-key"
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)  # Set 24 hour expiration
 app.config["JWT_ERROR_MESSAGE_KEY"] = "msg"
@@ -36,6 +51,21 @@ app.config["JWT_HEADER_NAME"] = "Authorization"
 app.config["JWT_HEADER_TYPE"] = "Bearer"
 jwt = JWTManager(app)
 
+# JWT Error Handlers for debugging
+@jwt.unauthorized_loader
+def unauthorized_callback(callback):
+    print("JWT unauthorized:", callback)
+    return jsonify({"msg": "Missing or invalid JWT"}), 401
+
+@jwt.invalid_token_loader
+def invalid_token_callback(callback):
+    print("JWT invalid:", callback)
+    return jsonify({"msg": "Invalid JWT"}), 422
+
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_payload):
+    print("JWT expired")
+    return jsonify({"msg": "Expired JWT"}), 401
 # JWT Error Handlers
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
@@ -93,8 +123,17 @@ except Exception as e:
     qa_pipeline = None
     print(f"Failed to load QA model: {e}")
 
+# 📊 Initialize Report Database and PDF Generator
+report_db = ReportDatabase()
+pdf_generator = PDFReportGenerator()
+
+# Create reports directory if it doesn't exist
+if not os.path.exists('reports'):
+    os.makedirs('reports')
+
 # 🔐 Auth Blueprint
 app.register_blueprint(auth, url_prefix='/api/auth')
+set_users(users)  # Set the users list in auth_routes
 app.register_blueprint(collaboration, url_prefix='/api/collaboration')
 
 @app.route('/api/test-jwt', methods=['GET'])
@@ -678,189 +717,255 @@ def register():
     users.append({"username": username, "password": password, "role": role})
     return jsonify({"msg": "User registered successfully"}), 201
 
-@app.route('/api/generate-report-pdf', methods=['POST'])
-def generate_report_pdf():
-    """Generate a PDF report of student progress"""
+# 📊 PDF Report Generation and Management Endpoints
+
+@app.route('/api/generate-report', methods=['POST'])
+def generate_report():
+    """Generate a PDF report for the current user"""
     try:
+        print("=== Generate Report Debug ===")
+        print("Headers:", dict(request.headers))
+        print("Method:", request.method)
+        
         data = request.get_json()
+        print("Request JSON data:", data)
         
-        # Get report data from request
-        subjects = data.get('subjects', [])
-        subject_scores = data.get('subjectScores', [])
-        topic_completion = data.get('topicCompletion', [])
-        total_topics = data.get('totalTopics', [])
-        activity_dates = data.get('activityDates', [])
-        activity_counts = data.get('activityCounts', [])
-        student_name = data.get('studentName', 'Student')
+        # Get username from request data or use default
+        student_name = data.get('student_name', 'Student') if data else 'Student'
+        print("Student name:", student_name)
         
-        # Create PDF
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4)
-        story = []
+        # Get chart images from request
+        charts = data.get('charts', {})
         
-        # Get styles
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=24,
-            spaceAfter=30,
-            alignment=TA_CENTER,
-            textColor=colors.darkblue
+        # Get analytics data
+        analytics_data = get_analytics_data()
+        
+        # Generate unique filename
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"report_{student_name.replace(' ', '_')}_{timestamp}.pdf"
+        pdf_path = os.path.join('reports', filename)
+        
+        # Generate PDF
+        pdf_generator.generate_report_pdf(student_name, analytics_data, pdf_path, charts=charts)
+        
+        # Store in database
+        report_id = report_db.save_report(
+            student_name=student_name,
+            report_data=json.dumps(analytics_data),
+            pdf_path=pdf_path,
+            subject_scores=json.dumps(analytics_data.get('subject_scores', {})),
+            topic_completion=json.dumps(analytics_data.get('topic_completion', {})),
+            activity_data=json.dumps(analytics_data.get('activity_data', {}))
         )
         
-        heading_style = ParagraphStyle(
-            'CustomHeading',
-            parent=styles['Heading2'],
-            fontSize=16,
-            spaceAfter=12,
-            textColor=colors.darkblue
-        )
-        
-        normal_style = styles['Normal']
-        
-        # Title
-        story.append(Paragraph(f"📈 Progress Report - {student_name}", title_style))
-        story.append(Spacer(1, 20))
-        
-        # Date
-        current_date = datetime.now().strftime("%B %d, %Y")
-        story.append(Paragraph(f"Generated on: {current_date}", normal_style))
-        story.append(Spacer(1, 20))
-        
-        # Subject Mastery Section
-        story.append(Paragraph("Subject Mastery", heading_style))
-        story.append(Spacer(1, 10))
-        
-        # Create subject mastery table
-        subject_data = [['Subject', 'Score (%)', 'Status']]
-        for i, subject in enumerate(subjects):
-            score = subject_scores[i] if i < len(subject_scores) else 0
-            status = "Excellent" if score >= 90 else "Good" if score >= 80 else "Average" if score >= 70 else "Needs Improvement"
-            subject_data.append([subject, str(score), status])
-        
-        subject_table = Table(subject_data, colWidths=[2*inch, 1*inch, 1.5*inch])
-        subject_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('FONTSIZE', (0, 1), (-1, -1), 10),
-        ]))
-        story.append(subject_table)
-        story.append(Spacer(1, 20))
-        
-        # Topic Completion Section
-        story.append(Paragraph("Topic Completion", heading_style))
-        story.append(Spacer(1, 10))
-        
-        # Create topic completion table
-        topic_data = [['Subject', 'Completed', 'Total', 'Progress (%)']]
-        for i, subject in enumerate(subjects):
-            completed = topic_completion[i] if i < len(topic_completion) else 0
-            total = total_topics[i] if i < len(total_topics) else 0
-            progress = round((completed / total * 100) if total > 0 else 0, 1)
-            topic_data.append([subject, str(completed), str(total), f"{progress}%"])
-        
-        topic_table = Table(topic_data, colWidths=[2*inch, 1*inch, 1*inch, 1*inch])
-        topic_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.darkgreen),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.lightgreen),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('FONTSIZE', (0, 1), (-1, -1), 10),
-        ]))
-        story.append(topic_table)
-        story.append(Spacer(1, 20))
-        
-        # Weekly Activity Section
-        story.append(Paragraph("Weekly Activity", heading_style))
-        story.append(Spacer(1, 10))
-        
-        # Create activity table
-        activity_data = [['Day', 'Lessons/Quizzes Completed']]
-        for i, day in enumerate(activity_dates):
-            count = activity_counts[i] if i < len(activity_counts) else 0
-            activity_data.append([day, str(count)])
-        
-        activity_table = Table(activity_data, colWidths=[1.5*inch, 2.5*inch])
-        activity_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.darkred),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.lightcoral),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('FONTSIZE', (0, 1), (-1, -1), 10),
-        ]))
-        story.append(activity_table)
-        story.append(Spacer(1, 20))
-        
-        # Summary Section
-        story.append(Paragraph("Summary", heading_style))
-        story.append(Spacer(1, 10))
-        
-        # Calculate summary statistics
-        avg_score = sum(subject_scores) / len(subject_scores) if subject_scores else 0
-        total_completed = sum(topic_completion) if topic_completion else 0
-        total_available = sum(total_topics) if total_topics else 0
-        weekly_activity = sum(activity_counts) if activity_counts else 0
-        
-        overall_progress = (total_completed/total_available*100) if total_available > 0 else 0
-        summary_text = f"""
-        <b>Overall Performance:</b><br/>
-        • Average Subject Score: {avg_score:.1f}%<br/>
-        • Total Topics Completed: {total_completed} out of {total_available}<br/>
-        • Weekly Activity: {weekly_activity} lessons/quizzes completed<br/>
-        • Overall Progress: {overall_progress:.1f}%<br/><br/>
-        
-        <b>Recommendations:</b><br/>
-        • Focus on subjects with lower scores<br/>
-        • Complete more topics in areas of interest<br/>
-        • Maintain consistent weekly activity<br/>
-        • Review completed topics regularly
-        """
-        
-        story.append(Paragraph(summary_text, normal_style))
-        story.append(Spacer(1, 20))
-        
-        # Motivational message
-        motivational_text = "🚀 Keep up the great work! Your learning journey is on fire!"
-        story.append(Paragraph(motivational_text, ParagraphStyle(
-            'Motivational',
-            parent=styles['Normal'],
-            fontSize=14,
-            alignment=TA_CENTER,
-            textColor=colors.darkblue,
-            spaceAfter=20
-        )))
-        
-        # Build PDF
-        doc.build(story)
-        buffer.seek(0)
-        
-        # Convert to base64 for sending to frontend
-        pdf_base64 = base64.b64encode(buffer.getvalue()).decode()
+        print("Report generated successfully with ID:", report_id)
         
         return jsonify({
             'success': True,
-            'pdf_data': pdf_base64,
-            'filename': f'progress_report_{student_name}_{datetime.now().strftime("%Y%m%d")}.pdf'
+            'report_id': report_id,
+            'pdf_path': pdf_path,
+            'message': f'Report generated successfully for {student_name}'
         })
         
     except Exception as e:
-        print(f"Error generating PDF: {str(e)}")
-        return jsonify({'error': f'Failed to generate PDF: {str(e)}'}), 500
+        print(f"Error generating report: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/download-report/<int:report_id>', methods=['GET'])
+def download_report(report_id):
+    """Download a specific PDF report"""
+    try:
+        report = report_db.get_report_by_id(report_id)
+        if not report:
+            return jsonify({'error': 'Report not found'}), 404
+        
+        pdf_path = report[3]  # pdf_path is at index 3
+        
+        if not os.path.exists(pdf_path):
+            return jsonify({'error': 'PDF file not found'}), 404
+        
+        return send_file(pdf_path, as_attachment=True, download_name=f"report_{report[1]}_{report_id}.pdf")
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reports', methods=['GET'])
+@jwt_required()
+def get_reports():
+    """Get reports based on user role (teacher or student)."""
+    try:
+        username = get_jwt_identity()
+        claims = get_jwt()
+        user_role = claims.get('role')
+
+        print(f"Fetching reports for user: {username}, role: {user_role}")
+
+        if user_role == 'teacher':
+            reports = report_db.get_all_reports()
+            formatted_reports = []
+            for report in reports:
+                formatted_reports.append({
+                    'id': report[0],
+                    'student_name': report[1],
+                    'created_at': report[4],
+                    'pdf_path': report[3],
+                    'remarks': report[8] if len(report) > 8 else None
+                })
+        else:
+            # For students, always return a default report
+            # First check if there's already a default report for this student
+            student_reports = report_db.get_reports_by_student(username)
+            
+            if student_reports:
+                # Use existing report
+                report = student_reports[0]
+                formatted_reports = [{
+                    'id': report[0],
+                    'student_name': report[1],
+                    'created_at': report[4],
+                    'pdf_path': report[3],
+                    'remarks': report[8] if len(report) > 8 else None
+                }]
+            else:
+                # Create a default report for this student
+                if not os.path.exists('reports'):
+                    os.makedirs('reports')
+                
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                filename = f"report_{username}_{timestamp}.pdf"
+                pdf_path = os.path.join('reports', filename)
+                
+                # Generate charts and rich data for the PDF
+                charts = create_dummy_charts()
+                report_data = {
+                    "subject_scores": {"Math": 85, "Science": 78, "History": 92, "English": 88},
+                    "topic_completion": {"Algebra": 8, "Biology": 6, "World War II": 9, "Shakespeare": 7},
+                    "activity_data": {"Mon": 3, "Tue": 5, "Wed": 4, "Thu": 6, "Fri": 7, "Sat": 2, "Sun": 1},
+                    "total_views": 28
+                }
+                
+                pdf_generator.generate_report_pdf(username, report_data, pdf_path, charts=charts)
+                
+                report_id = report_db.save_report(
+                    student_name=username,
+                    report_data=json.dumps(report_data),
+                    pdf_path=pdf_path,
+                    subject_scores=json.dumps(report_data["subject_scores"]),
+                    topic_completion=json.dumps(report_data["topic_completion"]),
+                    activity_data=json.dumps(report_data["activity_data"])
+                )
+                
+                formatted_reports = [{
+                    'id': report_id,
+                    'student_name': username,
+                    'created_at': datetime.now().isoformat(),
+                    'pdf_path': pdf_path,
+                    'remarks': None
+                }]
+        
+        return jsonify(formatted_reports)
+        
+    except Exception as e:
+        print(f"Error getting reports: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reports/<int:report_id>/remark', methods=['POST'])
+@jwt_required()
+def add_remark(report_id):
+    """Add a remark to a specific report (teacher only)"""
+    try:
+        claims = get_jwt()
+        user_role = claims.get('role')
+        if user_role != 'teacher':
+            return jsonify({'error': 'Only teachers can add remarks'}), 403
+
+        data = request.get_json()
+        remark = data.get('remark')
+
+        if remark is None:
+            return jsonify({'error': 'Remark is required'}), 400
+
+        report_db.add_remark(report_id, remark)
+        return jsonify({'message': 'Remark added successfully'})
+
+    except Exception as e:
+        print(f"Error adding remark: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reports/<int:report_id>', methods=['DELETE'])
+def delete_report(report_id):
+    """Delete a specific report"""
+    try:
+        report = report_db.get_report_by_id(report_id)
+        
+        if not report:
+            return jsonify({'error': 'Report not found'}), 404
+        
+        # Delete PDF file
+        pdf_path = report[3]
+        if os.path.exists(pdf_path):
+            os.remove(pdf_path)
+        
+        # Delete from database
+        report_db.delete_report(report_id)
+        
+        return jsonify({'message': 'Report deleted successfully'})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def get_analytics_data():
+    """Get analytics data for report generation"""
+    if not os.path.exists('progress.json'):
+        return {
+            "views_by_subject": {},
+            "views_by_topic": {},
+            "total_views": 0,
+            "subject_scores": {},
+            "topic_completion": {},
+            "activity_data": {}
+        }
+    
+    with open('progress.json') as f:
+        logs = json.load(f)
+    
+    subj_counts = Counter(e['subject'] for e in logs)
+    topic_counts = Counter(e['title'] for e in logs)
+    
+    # Generate mock subject scores based on activity
+    subject_scores = {}
+    for subject, count in subj_counts.items():
+        # Generate a score between 60-95 based on activity
+        score = min(95, max(60, 60 + (count * 5)))
+        subject_scores[subject] = score
+    
+    # Generate topic completion data
+    topic_completion = {}
+    for subject, count in subj_counts.items():
+        # Mock completion: 70-90% of total topics
+        total_topics = count * 2  # Assume 2x the viewed topics as total
+        completed = min(total_topics, int(count * 1.5))
+        topic_completion[subject] = completed
+    
+    # Generate weekly activity data
+    activity_data = {}
+    for i, day in enumerate(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']):
+        activity_data[day] = len([log for log in logs if i < len(logs) // 7])
+    
+    return {
+        'total_views': len(logs),
+        'views_by_subject': dict(subj_counts),
+        'views_by_topic': dict(topic_counts),
+        'subject_scores': subject_scores,
+        'topic_completion': topic_completion,
+        'activity_data': activity_data
+    }
 
 @app.route('/admin')
 def admin_page():
@@ -878,6 +983,170 @@ def admin_page():
     <p>Content: {{ stats['content'] }}</p>
     <p>Quizzes: {{ stats['quizzes'] }}</p>
     </body></html>""", stats=stats)
+
+# Helper function to create and encode charts
+def create_dummy_charts():
+    charts = {}
+    
+    # Bar Chart
+    subjects = ['Math', 'Science', 'History', 'English']
+    scores = np.random.randint(60, 100, size=len(subjects))
+    plt.figure(figsize=(6, 3))
+    plt.bar(subjects, scores, color=['#4e79a7', '#f28e2b', '#e15759', '#76b7b2'])
+    plt.title('Subject Mastery')
+    plt.ylabel('Scores (%)')
+    plt.ylim(0, 100)
+    
+    img_buffer = io.BytesIO()
+    plt.savefig(img_buffer, format='png', bbox_inches='tight')
+    charts['bar'] = "data:image/png;base64," + base64.b64encode(img_buffer.getvalue()).decode()
+    plt.close()
+
+    # Pie Chart
+    completed = np.random.randint(5, 15)
+    remaining = np.random.randint(1, 5)
+    plt.figure(figsize=(4, 4))
+    plt.pie([completed, remaining], labels=['Completed', 'Remaining'], autopct='%1.1f%%', colors=['#59a14f', '#edc948'])
+    plt.title('Overall Topic Completion')
+
+    img_buffer = io.BytesIO()
+    plt.savefig(img_buffer, format='png', bbox_inches='tight')
+    charts['doughnut'] = "data:image/png;base64," + base64.b64encode(img_buffer.getvalue()).decode()
+    plt.close()
+    
+    # Line Chart
+    days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    activity = np.random.randint(0, 8, size=len(days))
+    plt.figure(figsize=(6, 3))
+    plt.plot(days, activity, marker='o', linestyle='-', color='#bab0ab')
+    plt.title('Weekly Learning Activity')
+    plt.ylabel('Activities')
+    plt.ylim(0, 10)
+
+    img_buffer = io.BytesIO()
+    plt.savefig(img_buffer, format='png', bbox_inches='tight')
+    charts['line'] = "data:image/png;base64," + base64.b64encode(img_buffer.getvalue()).decode()
+    plt.close()
+    
+    return charts
+
+@app.route('/api/seed-reports', methods=['GET'])
+def seed_reports():
+    """A temporary endpoint to seed the database with rich dummy reports, including charts."""
+    try:
+        if not os.path.exists('reports'):
+            os.makedirs('reports')
+
+        dummy_students = ["Alice", "Bob", "Charlie"]
+        count = 0
+
+        for student_name in dummy_students:
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            filename = f"report_{student_name}_{timestamp}.pdf"
+            pdf_path = os.path.join('reports', filename)
+
+            # Generate charts and rich data for the PDF
+            charts = create_dummy_charts()
+            report_data = {
+                "subject_scores": {"Math": 92, "Science": 85, "History": 78, "English": 88},
+                "topic_completion": {"Algebra": 10, "Biology": 8, "World War II": 7, "Shakespeare": 9},
+                "activity_data": {"Mon": 2, "Tue": 4, "Wed": 3, "Thu": 5, "Fri": 6, "Sat": 2, "Sun": 1},
+                "total_views": 23
+            }
+            
+            pdf_generator.generate_report_pdf(student_name, report_data, pdf_path, charts=charts)
+            
+            report_db.save_report(
+                student_name=student_name,
+                report_data=json.dumps(report_data),
+                pdf_path=pdf_path,
+                subject_scores=json.dumps(report_data["subject_scores"]),
+                topic_completion=json.dumps(report_data["topic_completion"]),
+                activity_data=json.dumps(report_data["activity_data"])
+            )
+            count += 1
+        
+        return jsonify({'message': f'Successfully seeded {count} rich dummy reports with charts.'}), 200
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/view-report/<int:report_id>', methods=['GET'])
+@jwt_required()
+def view_report(report_id):
+    """Sends a specific PDF report for inline viewing."""
+    try:
+        report = report_db.get_report_by_id(report_id)
+        if not report:
+            return jsonify({'error': 'Report not found'}), 404
+        
+        pdf_path = report[3]
+        
+        if not os.path.exists(pdf_path):
+            return jsonify({'error': 'PDF file not found on server.'}), 404
+        
+        # Use as_attachment=False to allow inline viewing
+        return send_file(pdf_path, as_attachment=False)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/course-data', methods=['GET'])
+def get_course_data():
+    try:
+        with open(COURSE_DATA_PATH, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        print("Error in /api/course-data:", e)  # Debug print
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/course-data/add-topic', methods=['POST'])
+def add_topic():
+    try:
+        req = request.json
+        subject = req.get('subject')
+        title = req.get('title')
+        videoUrl = req.get('videoUrl')
+        if not (subject and title and videoUrl):
+            return jsonify({'error': 'Missing subject, title, or videoUrl'}), 400
+        with open(COURSE_DATA_PATH, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        for subj in data:
+            if subj['subject'] == subject:
+                subj['topics'].append({'title': title, 'videoUrl': videoUrl})
+                break
+        else:
+            return jsonify({'error': 'Subject not found'}), 404
+        with open(COURSE_DATA_PATH, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2)
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/course-data/delete-topic', methods=['POST'])
+def delete_topic():
+    try:
+        req = request.json
+        subject = req.get('subject')
+        title = req.get('title')
+        if not (subject and title):
+            return jsonify({'error': 'Missing subject or title'}), 400
+        with open(COURSE_DATA_PATH, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        for subj in data:
+            if subj['subject'] == subject:
+                subj['topics'] = [t for t in subj['topics'] if t['title'] != title]
+                break
+        else:
+            return jsonify({'error': 'Subject not found'}), 404
+        with open(COURSE_DATA_PATH, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2)
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.errorhandler(Exception)
 def handle_exception(e):
