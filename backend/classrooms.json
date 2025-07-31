@@ -7,9 +7,27 @@
     "created_by": "shailesh",
     "created_at": "2025-06-22T18:51:57.114866",
     "members": [
-      "shailesh"
+      "shailesh",
+      "Varshini",
+      "shapna",
+      "Ambrein",
+      "Bharathy",
+      "Aatiffa Farhana"
     ],
     "max_members": 7,
+    "is_active": true
+  },
+  {
+    "id": "3079d996-0c02-4077-9a8a-bb0bfb78cd60",
+    "name": "Theory of Computation",
+    "description": "Build a strong foundation on TOC subject",
+    "subject": "Theory of Computation",
+    "created_by": "shailesh",
+    "created_at": "2025-07-26T10:37:49.188499",
+    "members": [
+      "shailesh"
+    ],
+    "max_members": 10,
     "is_active": true
   }
 ]

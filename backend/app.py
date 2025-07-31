@@ -227,8 +227,31 @@ def chat():
         ]
     }
 
+    # Add retry logic and better error handling
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(
+                GEMINI_URL, 
+                headers=headers, 
+                data=json.dumps(body),
+                timeout=30,  # Add timeout
+                verify=True   # Ensure SSL verification
+            )
+            response.raise_for_status()  # Raise exception for bad status codes
+            break
+        except requests.exceptions.SSLError as e:
+            print(f"SSL Error on attempt {attempt + 1}: {str(e)}")
+            if attempt == max_retries - 1:
+                return jsonify({"reply": f"SSL connection error: {str(e)}"})
+            continue
+        except requests.exceptions.RequestException as e:
+            print(f"Request error on attempt {attempt + 1}: {str(e)}")
+            if attempt == max_retries - 1:
+                return jsonify({"reply": f"Network error: {str(e)}"})
+            continue
+
     try:
-        response = requests.post(GEMINI_URL, headers=headers, data=json.dumps(body))
         result = response.json()
 
         if "candidates" in result:
