@@ -330,6 +330,7 @@ button:hover {
 }
 
 .report-card-actions .btn-view { background-color: #0ea5e9; }
+.report-card-actions .btn-remark { background-color: #f59e0b; }
 .report-card-actions .btn-download { background-color: #10b981; }
 .report-card-actions .btn-delete { background-color: #ef4444; }
 
@@ -460,6 +461,37 @@ button:hover {
   cursor: pointer;
   margin-top: 1rem;
   transition: all 0.2s;
+}
+
+.remarks-section .btn-save-remark:hover {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.remarks-section .btn-save-remark:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.message-banner {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 500;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .student-report-item {

@@ -40,6 +40,32 @@ export default function Report() {
 
 // Student Dashboard Component
 function StudentDashboard() {
+  const { user } = useAuth();
+  const [studentReport, setStudentReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStudentReport = async () => {
+      try {
+        const token = sessionStorage.getItem('token');
+        const response = await axios.get(
+          'http://localhost:5000/api/reports',
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (response.data && response.data.length > 0) {
+          setStudentReport(response.data[0]);
+        }
+      } catch (error) {
+        console.error('Error fetching student report:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStudentReport();
+  }, []);
+
   const subjectMasteryData = {
     labels: ['Data Structures', 'OS', 'DBMS', 'Networks', 'AI', 'ML'],
     datasets: [{
@@ -95,6 +121,8 @@ function StudentDashboard() {
     scales: { y: { beginAtZero: true, max: 10 } },
   };
 
+  if (loading) return <div style={{ textAlign: 'center', padding: '2rem' }}>Loading your progress dashboard...</div>;
+
   return (
     <>
       <div className="reports-header no-print">
@@ -117,6 +145,16 @@ function StudentDashboard() {
         <Line data={weeklyActivityData} options={lineOptions} />
       </div>
 
+      {/* Teacher Remarks Section */}
+      {studentReport && studentReport.remarks && (
+        <div className="dashboard-card" style={{ marginTop: '2rem' }}>
+          <h3>📝 Teacher's Remarks</h3>
+          <div className="teacher-remark">
+            <p>{studentReport.remarks}</p>
+          </div>
+        </div>
+      )}
+
       <div style={{ textAlign: 'center', marginTop: '3rem' }} className="no-print">
         <button onClick={() => window.print()} className="btn-primary" style={{padding: '0.8rem 2rem', fontSize: '1rem'}}>
           📥 Download as PDF
@@ -135,12 +173,25 @@ function StudentDashboard() {
   );
 }
 
-
-// Teacher Dashboard Component (renamed from TeacherReportList)
+// Teacher Dashboard Component
 function TeacherDashboard() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [showRemarkModal, setShowRemarkModal] = useState(false);
+  const [selectedReport, setSelectedReport] = useState(null);
+  const [remarkText, setRemarkText] = useState('');
+  const [submittingRemark, setSubmittingRemark] = useState(false);
+
+  // Clear message after 5 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => {
+        setMessage('');
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -216,14 +267,68 @@ function TeacherDashboard() {
     }
   };
 
+  const openRemarkModal = (report) => {
+    setSelectedReport(report);
+    setRemarkText(report.remarks || '');
+    setShowRemarkModal(true);
+  };
+
+  const closeRemarkModal = () => {
+    setShowRemarkModal(false);
+    setSelectedReport(null);
+    setRemarkText('');
+  };
+
+  const saveRemark = async () => {
+    if (!selectedReport || !remarkText.trim()) {
+      setMessage('❌ Please enter a remark');
+      return;
+    }
+
+    setSubmittingRemark(true);
+    try {
+      const token = sessionStorage.getItem('token');
+      await axios.post(
+        `http://localhost:5000/api/reports/${selectedReport.id}/remark`,
+        { remark: remarkText.trim() },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      // Update the report in the local state
+      setReports(reports.map(report => 
+        report.id === selectedReport.id 
+          ? { ...report, remarks: remarkText.trim() }
+          : report
+      ));
+
+      setMessage('✅ Remark saved successfully');
+      closeRemarkModal();
+    } catch (error) {
+      setMessage(`❌ Error saving remark: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setSubmittingRemark(false);
+    }
+  };
+
   if (loading) return <div>Loading reports...</div>;
-  if (message) return <div style={{ color: message.includes('❌') ? 'red' : 'green', marginBottom: 16 }}>{message}</div>;
 
   return (
     <>
       <div className="reports-header no-print">
         <h2>📊 Student Reports Dashboard</h2>
       </div>
+      
+      {message && (
+        <div className="message-banner" style={{ 
+          color: message.includes('❌') ? 'red' : 'green', 
+          backgroundColor: message.includes('❌') ? '#fee' : '#efe'
+        }}>
+          {message}
+        </div>
+      )}
+
       <div className="report-grid">
         {reports.length > 0 ? reports.map((report) => (
           <div key={report.id} className="report-card">
@@ -236,6 +341,7 @@ function TeacherDashboard() {
             </p>
             <div className="report-card-actions">
               <button onClick={() => viewReportInModal(report)} className="btn-view">👁️ View</button>
+              <button onClick={() => openRemarkModal(report)} className="btn-remark">✏️ Remarks</button>
               <button onClick={() => downloadReport(report.id)} className="btn-download">📥 Download</button>
               <button onClick={() => deleteReport(report.id)} className="btn-delete">🗑️ Delete</button>
             </div>
@@ -246,6 +352,59 @@ function TeacherDashboard() {
           </div>
         )}
       </div>
+
+      {/* Remarks Modal */}
+      {showRemarkModal && (
+        <div className="modal-overlay" onClick={closeRemarkModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Add/Edit Remark for {selectedReport?.student_name}</h3>
+              <button className="close-button" onClick={closeRemarkModal}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="remarks-section">
+                <h4>Teacher's Remark</h4>
+                <textarea
+                  value={remarkText}
+                  onChange={(e) => setRemarkText(e.target.value)}
+                  placeholder="Enter your remark about this student's performance..."
+                  rows={6}
+                />
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+                  <button 
+                    onClick={closeRemarkModal}
+                    style={{
+                      padding: '10px 20px',
+                      border: '1px solid #ccc',
+                      borderRadius: '5px',
+                      backgroundColor: '#f8f9fa',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={saveRemark}
+                    disabled={submittingRemark}
+                    className="btn-save-remark"
+                    style={{
+                      padding: '10px 20px',
+                      border: 'none',
+                      borderRadius: '5px',
+                      backgroundColor: '#10b981',
+                      color: 'white',
+                      cursor: submittingRemark ? 'not-allowed' : 'pointer',
+                      opacity: submittingRemark ? 0.7 : 1
+                    }}
+                  >
+                    {submittingRemark ? 'Saving...' : 'Save Remark'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 } 

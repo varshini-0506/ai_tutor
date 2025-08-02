@@ -41,7 +41,7 @@ class PDFReportGenerator:
             spaceAfter=6
         )
     
-    def generate_report_pdf(self, student_name, report_data, output_path, charts=None):
+    def generate_report_pdf(self, student_name, report_data, output_path, charts=None, remarks=None):
         """Generate a complete PDF report with embedded chart images"""
         print(f"Starting PDF generation for {student_name}")
         
@@ -175,6 +175,15 @@ class PDFReportGenerator:
         except Exception as e:
             error_para = Paragraph(f"Error processing report data: {str(e)}", self.normal_style)
             story.append(error_para)
+        
+        # Teacher Remarks Section
+        if remarks:
+            remarks_heading = Paragraph("📝 Teacher's Remarks", self.heading_style)
+            story.append(remarks_heading)
+            
+            remarks_para = Paragraph(remarks, self.normal_style)
+            story.append(remarks_para)
+            story.append(Spacer(1, 20))
         
         # Conclusion
         conclusion_heading = Paragraph("🎯 Recommendations", self.heading_style)

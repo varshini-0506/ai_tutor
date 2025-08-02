@@ -714,8 +714,16 @@ def generate_report():
         filename = f"report_{student_name.replace(' ', '_')}_{timestamp}.pdf"
         pdf_path = os.path.join('reports', filename)
         
+        # Get remarks if they exist
+        remarks = None
+        if data and data.get('student_name'):
+            # Try to get existing remarks for this student
+            student_reports = report_db.get_reports_by_student(data.get('student_name'))
+            if student_reports and len(student_reports) > 0:
+                remarks = student_reports[0][8] if len(student_reports[0]) > 8 else None
+        
         # Generate PDF
-        pdf_generator.generate_report_pdf(student_name, analytics_data, pdf_path, charts=charts)
+        pdf_generator.generate_report_pdf(student_name, analytics_data, pdf_path, charts=charts, remarks=remarks)
         
         # Store in database
         report_id = report_db.save_report(
@@ -815,7 +823,7 @@ def get_reports():
                     "total_views": 28
                 }
                 
-                pdf_generator.generate_report_pdf(username, report_data, pdf_path, charts=charts)
+                pdf_generator.generate_report_pdf(username, report_data, pdf_path, charts=charts, remarks=None)
                 
                 report_id = report_db.save_report(
                     student_name=username,
@@ -859,6 +867,25 @@ def add_remark(report_id):
             return jsonify({'error': 'Remark is required'}), 400
 
         report_db.add_remark(report_id, remark)
+        
+        # Regenerate PDF with the new remark
+        try:
+            report = report_db.get_report_by_id(report_id)
+            if report:
+                # Parse the report data
+                report_data = json.loads(report[2]) if isinstance(report[2], str) else report[2]
+                
+                # Regenerate PDF with remarks
+                pdf_generator.generate_report_pdf(
+                    report[1],  # student_name
+                    report_data,
+                    report[3],  # pdf_path
+                    charts=None,
+                    remarks=remark
+                )
+        except Exception as e:
+            print(f"Warning: Could not regenerate PDF with remarks: {e}")
+        
         return jsonify({'message': 'Remark added successfully'})
 
     except Exception as e:
@@ -1023,7 +1050,7 @@ def seed_reports():
                 "total_views": 23
             }
             
-            pdf_generator.generate_report_pdf(student_name, report_data, pdf_path, charts=charts)
+            pdf_generator.generate_report_pdf(student_name, report_data, pdf_path, charts=charts, remarks=None)
             
             report_db.save_report(
                 student_name=student_name,
