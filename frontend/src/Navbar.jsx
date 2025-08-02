@@ -35,6 +35,7 @@ export default function Navbar({ onLogout }) {
             <Link to="/ai-tutor" style={{ color: 'white', textDecoration: 'none', fontWeight: '500' }}>AI Tutor</Link>
             <Link to="/report" style={{ color: 'white', textDecoration: 'none', fontWeight: '500' }}>Report</Link>
             <Link to="/collaboration" style={{ color: 'white', textDecoration: 'none', fontWeight: '500' }}>Collaboration</Link>
+            <Link to="/calendar" style={{ color: 'white', textDecoration: 'none', fontWeight: '500' }}>📅 Calendar</Link>
           </>
         )}
       </div>

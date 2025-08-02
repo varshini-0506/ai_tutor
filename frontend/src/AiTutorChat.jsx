@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import './AiTutorChat.css';
 
 // Parse Gemini markdown-style quiz format
 function parseMarkdownQuiz(text) {
@@ -74,30 +75,301 @@ function QuizBlock({ question, options, answer, number }) {
   );
 }
 
+// Voice Recognition Component
+function VoiceRecognition({ onTranscript, isListening, setIsListening }) {
+  const recognitionRef = useRef(null);
+  const isInitialized = useRef(false);
+  const [browserSupport, setBrowserSupport] = useState(null);
+
+  useEffect(() => {
+    // Check browser support first
+    const checkBrowserSupport = () => {
+      if ('webkitSpeechRecognition' in window) {
+        setBrowserSupport('webkit');
+        return true;
+      } else if ('SpeechRecognition' in window) {
+        setBrowserSupport('standard');
+        return true;
+      } else {
+        setBrowserSupport('none');
+        return false;
+      }
+    };
+
+    // Initialize speech recognition only once
+    if (!isInitialized.current && checkBrowserSupport()) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      
+      try {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+        recognitionRef.current.lang = 'en-US';
+        recognitionRef.current.maxAlternatives = 1;
+
+        recognitionRef.current.onresult = (event) => {
+          console.log('Speech recognition result received');
+          let finalTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            }
+          }
+          if (finalTranscript) {
+            console.log('Final transcript:', finalTranscript);
+            onTranscript(finalTranscript);
+            setIsListening(false);
+          }
+        };
+
+        recognitionRef.current.onerror = (event) => {
+          console.error('Speech recognition error:', event.error);
+          
+          // Handle specific error types
+          switch (event.error) {
+            case 'aborted':
+              console.log('Speech recognition was aborted - this is normal when stopping');
+              break;
+            case 'audio-capture':
+              console.log('No microphone was found');
+              alert('No microphone detected. Please check your microphone connection.');
+              break;
+            case 'bad-grammar':
+              console.log('Speech recognition grammar error');
+              break;
+            case 'language-not-supported':
+              console.log('Language not supported');
+              break;
+            case 'network':
+              console.log('Network error occurred');
+              alert('Network error occurred. Please check your internet connection.');
+              break;
+            case 'no-speech':
+              console.log('No speech was detected');
+              alert('No speech detected. Please try speaking more clearly.');
+              break;
+            case 'not-allowed':
+              console.log('Permission denied for microphone');
+              alert('Microphone permission denied. Please allow microphone access in your browser settings.');
+              break;
+            case 'service-not-allowed':
+              console.log('Speech recognition service not allowed');
+              break;
+            default:
+              console.log('Unknown speech recognition error:', event.error);
+          }
+          
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onend = () => {
+          console.log('Speech recognition ended');
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onstart = () => {
+          console.log('Speech recognition started');
+        };
+
+        isInitialized.current = true;
+        console.log('Speech recognition initialized successfully');
+      } catch (error) {
+        console.error('Error initializing speech recognition:', error);
+        setBrowserSupport('error');
+      }
+    }
+
+    // Cleanup function
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (error) {
+          console.log('Error stopping recognition during cleanup:', error);
+        }
+      }
+    };
+  }, [onTranscript, setIsListening]);
+
+  const startListening = () => {
+    if (recognitionRef.current && !isListening) {
+      try {
+        console.log('Starting speech recognition...');
+        
+        // Stop any existing recognition first
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          // Ignore errors when stopping
+        }
+        
+        // Small delay to ensure clean restart
+        setTimeout(() => {
+          try {
+            recognitionRef.current.start();
+            setIsListening(true);
+            console.log('Speech recognition started successfully');
+          } catch (error) {
+            console.error('Error starting speech recognition:', error);
+            setIsListening(false);
+            alert('Failed to start voice recognition. Please try again.');
+          }
+        }, 100);
+      } catch (error) {
+        console.error('Error in startListening:', error);
+        setIsListening(false);
+      }
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current && isListening) {
+      try {
+        console.log('Stopping speech recognition...');
+        recognitionRef.current.stop();
+        setIsListening(false);
+      } catch (error) {
+        console.error('Error stopping speech recognition:', error);
+        setIsListening(false);
+      }
+    }
+  };
+
+  // Show different states based on browser support
+  if (browserSupport === 'none') {
+    return (
+      <div className="voice-status">
+        <button className="voice-btn disabled" disabled>
+          🎤 Voice not supported
+        </button>
+        <p className="voice-help">Use Chrome or Edge browser for voice support</p>
+      </div>
+    );
+  }
+
+  if (browserSupport === 'error') {
+    return (
+      <div className="voice-status">
+        <button className="voice-btn disabled" disabled>
+          🎤 Voice error
+        </button>
+        <p className="voice-help">Voice recognition failed to initialize</p>
+      </div>
+    );
+  }
+
+  if (!isInitialized.current) {
+    return (
+      <div className="voice-status">
+        <button className="voice-btn disabled" disabled>
+          🎤 Initializing...
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="voice-status">
+      <button
+        className={`voice-btn ${isListening ? 'listening' : ''}`}
+        onClick={isListening ? stopListening : startListening}
+        title={isListening ? 'Stop listening' : 'Start voice input'}
+      >
+        {isListening ? '🔴 Stop' : '🎤 Voice'}
+      </button>
+      {isListening && (
+        <p className="voice-instructions">
+          Speak now... Click stop when finished
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function AiTutorChat({ token }) {
   const [messages, setMessages] = useState([]);
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [action, setAction] = useState('text');
   const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [isListening, setIsListening] = useState(false);
+  const [showVoiceButton, setShowVoiceButton] = useState(false);
+  const [ocrStatus, setOcrStatus] = useState(null);
+
+  // Check OCR status on component mount
+  useEffect(() => {
+    const checkOcrStatus = async () => {
+      try {
+        const res = await fetch('http://127.0.0.1:5000/check-ocr');
+        const data = await res.json();
+        setOcrStatus(data);
+        if (!data.available) {
+          console.warn('OCR not available:', data.message);
+        }
+      } catch (error) {
+        console.error('Error checking OCR status:', error);
+        setOcrStatus({ available: false, message: 'Could not check OCR status' });
+      }
+    };
+    
+    checkOcrStatus();
+  }, []);
+
+  // Handle voice transcript
+  const handleVoiceTranscript = (transcript) => {
+    setQuestion(transcript);
+    setShowVoiceButton(false);
+  };
+
+  // Handle image file selection
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile(file);
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Clear image
+  const clearImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
 
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!question && action !== 'image') return;
+    if (action === 'image' && !imageFile) return;
+    
     setLoading(true);
-    setMessages([...messages, { from: 'user', text: question, action }]);
+    setMessages([...messages, { from: 'user', text: question || 'Image uploaded', action }]);
 
-    // Handle image upload as base64 in JSON
+    // Handle image upload
     if (action === 'image' && imageFile) {
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64String = reader.result;
         try {
-          const res = await fetch('http://127.0.0.1:5000/chat', {
+          // Use the dedicated analyze-image route for better OCR processing
+          const res = await fetch('http://127.0.0.1:5000/analyze-image', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
-            body: JSON.stringify({ message: base64String, action: 'image' })
+            body: JSON.stringify({ 
+              image: base64String, 
+              analysis_type: 'educational' 
+            })
           });
+          
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          
           const contentType = res.headers.get('content-type');
           let data;
           if (contentType && contentType.includes('application/json')) {
@@ -106,12 +378,19 @@ export default function AiTutorChat({ token }) {
             const text = await res.text();
             throw new Error('Non-JSON response: ' + text);
           }
-          setMessages(msgs => [...msgs, { from: 'ai', text: data.reply, action }]);
+          
+          if (data.error) {
+            throw new Error(data.error);
+          }
+          
+          setMessages(msgs => [...msgs, { from: 'ai', text: data.analysis, action }]);
         } catch (err) {
-          setMessages(msgs => [...msgs, { from: 'ai', text: `Error: ${err.message}`, action }]);
+          console.error('Image processing error:', err);
+          setMessages(msgs => [...msgs, { from: 'ai', text: `Error processing image: ${err.message}`, action }]);
         } finally {
           setQuestion('');
           setImageFile(null);
+          setImagePreview(null);
           setLoading(false);
         }
       };
@@ -119,13 +398,18 @@ export default function AiTutorChat({ token }) {
       return;
     }
 
-    // Non-image actions
+    // Handle text-based actions
     try {
       const res = await fetch('http://127.0.0.1:5000/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
         body: JSON.stringify({ message: question, action })
       });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
       const contentType = res.headers.get('content-type');
       let data;
       if (contentType && contentType.includes('application/json')) {
@@ -134,12 +418,15 @@ export default function AiTutorChat({ token }) {
         const text = await res.text();
         throw new Error('Non-JSON response: ' + text);
       }
+      
       setMessages(msgs => [...msgs, { from: 'ai', text: data.reply, action }]);
     } catch (err) {
+      console.error('Chat error:', err);
       setMessages(msgs => [...msgs, { from: 'ai', text: `Error: ${err.message}`, action }]);
     } finally {
       setQuestion('');
       setImageFile(null);
+      setImagePreview(null);
       setLoading(false);
     }
   };
@@ -165,17 +452,50 @@ export default function AiTutorChat({ token }) {
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: '2rem auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 16px rgba(0,0,0,0.08)', padding: '2rem', height: '80vh', display: 'flex', flexDirection: 'column' }}>
-      <h2>AI Tutor Chat</h2>
-      <form onSubmit={sendMessage} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <select value={action} onChange={e => setAction(e.target.value)} style={{ borderRadius: 6, padding: 6 }}>
-            <option value="text">Text</option>
-            <option value="code">Code</option>
-            <option value="diagram">Diagram</option>
-            <option value="quiz">Quiz</option>
-            <option value="summarize">Summarize</option>
-            <option value="image">Image</option>
+    <div className="ai-tutor-container">
+      <div className="ai-tutor-header">
+        <h2>🤖 AI Tutor</h2>
+        <div className="header-controls">
+          {ocrStatus && (
+            <span 
+              className={`ocr-status ${ocrStatus.available ? 'available' : 'unavailable'}`}
+              title={ocrStatus.message}
+            >
+              📷 {ocrStatus.available ? 'OCR Ready' : 'OCR Unavailable'}
+            </span>
+          )}
+          <button 
+            className="voice-toggle-btn"
+            onClick={() => setShowVoiceButton(!showVoiceButton)}
+            title="Toggle voice input"
+          >
+            🎤 Voice Input
+          </button>
+        </div>
+      </div>
+
+      {showVoiceButton && (
+        <div className="voice-section">
+          <VoiceRecognition 
+            onTranscript={handleVoiceTranscript}
+            isListening={isListening}
+            setIsListening={setIsListening}
+          />
+          <p className="voice-instructions">
+            Click the voice button to start speaking. Your speech will be converted to text automatically.
+          </p>
+        </div>
+      )}
+
+      <form onSubmit={sendMessage} className="chat-form">
+        <div className="input-group">
+          <select value={action} onChange={e => setAction(e.target.value)} className="action-select">
+            <option value="text">💬 Text</option>
+            <option value="code">💻 Code</option>
+            <option value="diagram">📊 Diagram</option>
+            <option value="quiz">❓ Quiz</option>
+            <option value="summarize">📝 Summarize</option>
+            <option value="image">🖼️ Image</option>
           </select>
 
           <input
@@ -183,42 +503,56 @@ export default function AiTutorChat({ token }) {
             onChange={e => setQuestion(e.target.value)}
             placeholder={action === 'summarize' ? 'Enter YouTube URL...' : 'Ask a question...'}
             disabled={action === 'image'}
-            style={{ borderRadius: 6, border: '1px solid #ccc', padding: 8, flex: 1 }}
+            className="question-input"
             required={action !== 'image'}
           />
+
+          <button type="submit" disabled={loading || (action === 'image' && !imageFile)} className="send-btn">
+            {loading ? '🔄 Thinking...' : '🚀 Send'}
+          </button>
         </div>
 
         {action === 'image' && (
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setImageFile(e.target.files[0])}
-            required
-          />
+          <div className="image-upload-section">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              required
+              className="file-input"
+            />
+            {imagePreview && (
+              <div className="image-preview-container">
+                <img src={imagePreview} alt="Preview" className="image-preview" />
+                <button 
+                  type="button" 
+                  onClick={clearImage}
+                  className="clear-image-btn"
+                >
+                  ❌ Clear
+                </button>
+              </div>
+            )}
+          </div>
         )}
-
-        <button type="submit" disabled={loading}>{loading ? 'Thinking...' : 'Ask AI'}</button>
       </form>
 
-      <div style={{ flex: 1, overflowY: 'auto', paddingRight: 8 }}>
+      <div className="messages-container">
         {messages.map((msg, i) => (
-          <div key={i} style={{
-            background: msg.from === 'ai' ? '#e0e7ff' : '#f8f9fa',
-            borderRadius: 8,
-            padding: 10,
-            marginBottom: 8,
-            textAlign: msg.from === 'ai' ? 'left' : 'right',
-            border: msg.from === 'ai' ? '1px solid #b4b8ff' : '1px solid #e5e7eb',
-            fontSize: 16
-          }}>
-            <strong>{msg.from === 'ai' ? 'AI' : 'You'}{msg.action ? ` (${msg.action})` : ''}:</strong>{' '}
-            {msg.from === 'ai' && msg.action === 'quiz' ? (
-              <QuizMessage text={msg.text} />
-            ) : msg.from === 'ai' ? (
-              <MarkdownWithCode>{msg.text}</MarkdownWithCode>
-            ) : (
-              msg.text
-            )}
+          <div key={i} className={`message ${msg.from === 'ai' ? 'ai' : 'user'}`}>
+            <div className="message-header">
+              <strong>{msg.from === 'ai' ? '🤖 AI' : '👤 You'}</strong>
+              {msg.action && <span className="action-tag">{msg.action}</span>}
+            </div>
+            <div className="message-content">
+              {msg.from === 'ai' && msg.action === 'quiz' ? (
+                <QuizMessage text={msg.text} />
+              ) : msg.from === 'ai' ? (
+                <MarkdownWithCode>{msg.text}</MarkdownWithCode>
+              ) : (
+                msg.text
+              )}
+            </div>
           </div>
         ))}
       </div>
