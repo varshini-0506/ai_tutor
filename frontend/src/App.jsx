@@ -54,11 +54,11 @@ function AppRoutes() {
             {/* Student-specific routes */}
             {!isTeacher && (
               <>
-                <Route path="/lessons" element={<Lessons />} />
-                <Route path="/quizzes" element={<QuizList />} />
-                <Route path="/tutor" element={<AiTutorChat />} />
+                <Route path="/content" element={<Lessons />} />
+                <Route path="/quiz" element={<Quiz token={sessionStorage.getItem('token')} />} />
+                <Route path="/ai-tutor" element={<AiTutorChat token={sessionStorage.getItem('token')} />} />
                 <Route path="/report" element={<Report />} />           
-                <Route path="/collaboration" element={<Collaboration />} />
+                <Route path="/collaboration" element={<Collaboration token={sessionStorage.getItem('token')} role={user?.role} />} />
               </>
             )}
             

@@ -10,7 +10,7 @@ import {
   LinearScale, 
   BarElement, 
   PointElement, 
-  LineElement as ChartJsLineElement 
+  LineElement 
 } from 'chart.js';
 import { useAuth } from './AuthContext.jsx';
 
@@ -23,7 +23,7 @@ Chart.register(
   LinearScale, 
   BarElement, 
   PointElement, 
-  ChartJsLineElement
+  LineElement
 );
 
 // Main Report Component
@@ -40,31 +40,9 @@ export default function Report() {
 
 // Student Dashboard Component
 function StudentDashboard() {
-  const { user } = useAuth();
-  const [studentReport, setStudentReport] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStudentReport = async () => {
-      try {
-        const token = sessionStorage.getItem('token');
-        const response = await axios.get(
-          'http://localhost:5000/api/reports',
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        if (response.data && response.data.length > 0) {
-          setStudentReport(response.data[0]);
-        }
-      } catch (error) {
-        console.error('Error fetching student report:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchStudentReport();
-  }, []);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const subjectMasteryData = {
     labels: ['Data Structures', 'OS', 'DBMS', 'Networks', 'AI', 'ML'],
@@ -121,13 +99,112 @@ function StudentDashboard() {
     scales: { y: { beginAtZero: true, max: 10 } },
   };
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '2rem' }}>Loading your progress dashboard...</div>;
+  const generatePDF = async () => {
+    setIsGeneratingPDF(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const studentName = localStorage.getItem('username') || 'Student';
+      
+      const response = await fetch('http://127.0.0.1:5000/api/generate-report-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subjects: subjectMasteryData.labels,
+          subjectScores: subjectMasteryData.datasets[0].data,
+          topicCompletion: topicCompletionData.datasets[0].data,
+          totalTopics: [20, 18, 25, 18, 12, 22],
+          activityDates: weeklyActivityData.labels,
+          activityCounts: weeklyActivityData.datasets[0].data,
+          studentName
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Convert base64 to blob and download
+        const pdfBlob = new Blob([Uint8Array.from(atob(data.pdf_data), c => c.charCodeAt(0))], {
+          type: 'application/pdf'
+        });
+        
+        const url = window.URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = data.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        setSuccess('PDF report downloaded successfully!');
+      } else {
+        setError(data.error || 'Failed to generate PDF');
+      }
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      setError('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
 
   return (
     <>
       <div className="reports-header no-print">
-        <h2 style={{ fontSize: '2.2rem' }}>Your Progress Dashboard</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ fontSize: '2.2rem', margin: 0 }}>Your Progress Dashboard</h2>
+          <button
+            onClick={generatePDF}
+            disabled={isGeneratingPDF}
+            style={{
+              background: isGeneratingPDF ? '#ccc' : 'linear-gradient(90deg, #007bff, #4a4e69)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 8,
+              padding: '12px 24px',
+              fontSize: 16,
+              fontWeight: 600,
+              cursor: isGeneratingPDF ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            {isGeneratingPDF ? '🔄 Generating...' : '📄 Download PDF'}
+          </button>
+        </div>
       </div>
+
+      {error && (
+        <div style={{
+          background: '#f8d7da',
+          color: '#721c24',
+          padding: '12px 16px',
+          borderRadius: 8,
+          marginBottom: 20,
+          border: '1px solid #f5c6cb'
+        }}>
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div style={{
+          background: '#d4edda',
+          color: '#155724',
+          padding: '12px 16px',
+          borderRadius: 8,
+          marginBottom: 20,
+          border: '1px solid #c3e6cb'
+        }}>
+          {success}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr', gap: '2rem', alignItems: 'stretch' }}>
         <div className="dashboard-card" style={{ height: '380px' }}>
@@ -144,16 +221,6 @@ function StudentDashboard() {
         <h3>Weekly Learning Activity</h3>
         <Line data={weeklyActivityData} options={lineOptions} />
       </div>
-
-      {/* Teacher Remarks Section */}
-      {studentReport && studentReport.remarks && (
-        <div className="dashboard-card" style={{ marginTop: '2rem' }}>
-          <h3>📝 Teacher's Remarks</h3>
-          <div className="teacher-remark">
-            <p>{studentReport.remarks}</p>
-          </div>
-        </div>
-      )}
 
       <div style={{ textAlign: 'center', marginTop: '3rem' }} className="no-print">
         <button onClick={() => window.print()} className="btn-primary" style={{padding: '0.8rem 2rem', fontSize: '1rem'}}>
@@ -178,10 +245,9 @@ function TeacherDashboard() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
-  const [showRemarkModal, setShowRemarkModal] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
   const [remarkText, setRemarkText] = useState('');
-  const [submittingRemark, setSubmittingRemark] = useState(false);
+  const [showRemarkModal, setShowRemarkModal] = useState(false);
 
   // Clear message after 5 seconds
   useEffect(() => {
@@ -193,27 +259,28 @@ function TeacherDashboard() {
     }
   }, [message]);
 
+  const fetchReports = async () => {
+    try {
+      const token = sessionStorage.getItem('token');
+      const response = await axios.get(
+        'http://localhost:5000/api/reports',
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setReports(response.data);
+    } catch (error) {
+      setMessage(
+        `❌ Error loading reports: ${
+          error.response?.data?.error || error.message
+        }`
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchReports = async () => {
-      try {
-        const token = sessionStorage.getItem('token');
-        const response = await axios.get(
-          'http://localhost:5000/api/reports',
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        setReports(response.data);
-      } catch (error) {
-        setMessage(
-          `❌ Error loading reports: ${
-            error.response?.data?.error || error.message
-          }`
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchReports();
   }, []);
 
@@ -279,36 +346,40 @@ function TeacherDashboard() {
     setRemarkText('');
   };
 
-  const saveRemark = async () => {
-    if (!selectedReport || !remarkText.trim()) {
+  const addRemark = async () => {
+    if (!remarkText.trim()) {
       setMessage('❌ Please enter a remark');
       return;
     }
 
-    setSubmittingRemark(true);
     try {
       const token = sessionStorage.getItem('token');
-      await axios.post(
+      const response = await axios.post(
         `http://localhost:5000/api/reports/${selectedReport.id}/remark`,
-        { remark: remarkText.trim() },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+        { remark: remarkText },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Update the report in the local state
-      setReports(reports.map(report => 
-        report.id === selectedReport.id 
-          ? { ...report, remarks: remarkText.trim() }
-          : report
-      ));
+      // Update the report in the local state immediately
+      setReports(prevReports => 
+        prevReports.map(r => 
+          r.id === selectedReport.id 
+            ? { ...r, remarks: remarkText }
+            : r
+        )
+      );
 
-      setMessage('✅ Remark saved successfully');
-      closeRemarkModal();
+      setMessage('✅ Remark added successfully');
+      setShowRemarkModal(false);
+      setRemarkText('');
+      setSelectedReport(null);
+
+      // Refresh the reports list to ensure everything is in sync
+      setTimeout(() => {
+        fetchReports();
+      }, 100);
     } catch (error) {
-      setMessage(`❌ Error saving remark: ${error.response?.data?.error || error.message}`);
-    } finally {
-      setSubmittingRemark(false);
+      setMessage(`❌ Error adding remark: ${error.response?.data?.error || error.message}`);
     }
   };
 
@@ -353,58 +424,85 @@ function TeacherDashboard() {
         )}
       </div>
 
-      {/* Remarks Modal */}
+      {/* Remark Modal */}
       {showRemarkModal && (
-        <div className="modal-overlay" onClick={closeRemarkModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Add/Edit Remark for {selectedReport?.student_name}</h3>
-              <button className="close-button" onClick={closeRemarkModal}>&times;</button>
-            </div>
-            <div className="modal-body">
-              <div className="remarks-section">
-                <h4>Teacher's Remark</h4>
-                <textarea
-                  value={remarkText}
-                  onChange={(e) => setRemarkText(e.target.value)}
-                  placeholder="Enter your remark about this student's performance..."
-                  rows={6}
-                />
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-                  <button 
-                    onClick={closeRemarkModal}
-                    style={{
-                      padding: '10px 20px',
-                      border: '1px solid #ccc',
-                      borderRadius: '5px',
-                      backgroundColor: '#f8f9fa',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={saveRemark}
-                    disabled={submittingRemark}
-                    className="btn-save-remark"
-                    style={{
-                      padding: '10px 20px',
-                      border: 'none',
-                      borderRadius: '5px',
-                      backgroundColor: '#10b981',
-                      color: 'white',
-                      cursor: submittingRemark ? 'not-allowed' : 'pointer',
-                      opacity: submittingRemark ? 0.7 : 1
-                    }}
-                  >
-                    {submittingRemark ? 'Saving...' : 'Save Remark'}
-                  </button>
-                </div>
-              </div>
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '2rem',
+            borderRadius: '8px',
+            width: '90%',
+            maxWidth: '500px',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+          }}>
+            <h3 style={{ marginBottom: '1rem', color: '#333' }}>
+              Add Remark for {selectedReport?.student_name}
+            </h3>
+            <textarea
+              value={remarkText}
+              onChange={(e) => setRemarkText(e.target.value)}
+              placeholder="Enter your remark here..."
+              style={{
+                width: '100%',
+                minHeight: '120px',
+                padding: '0.75rem',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                resize: 'vertical'
+              }}
+            />
+            <div style={{
+              display: 'flex',
+              gap: '1rem',
+              marginTop: '1rem',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={() => {
+                  setShowRemarkModal(false);
+                  setRemarkText('');
+                  setSelectedReport(null);
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  border: '1px solid #ddd',
+                  background: '#f8f9fa',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={addRemark}
+                style={{
+                  padding: '0.5rem 1rem',
+                  border: 'none',
+                  background: '#007bff',
+                  color: 'white',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                Save Remark
+              </button>
             </div>
           </div>
         </div>
       )}
     </>
   );
-} 
+}

@@ -30,6 +30,14 @@ import numpy as np
 # Define this at the top level so all routes can access it
 COURSE_DATA_PATH = os.path.join(os.path.dirname(__file__), 'course_data.json')
 from datetime import datetime, timedelta
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from io import BytesIO
+import base64
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
@@ -258,8 +266,31 @@ def chat():
         ]
     }
 
+    # Add retry logic and better error handling
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(
+                GEMINI_URL, 
+                headers=headers, 
+                data=json.dumps(body),
+                timeout=30,  # Add timeout
+                verify=True   # Ensure SSL verification
+            )
+            response.raise_for_status()  # Raise exception for bad status codes
+            break
+        except requests.exceptions.SSLError as e:
+            print(f"SSL Error on attempt {attempt + 1}: {str(e)}")
+            if attempt == max_retries - 1:
+                return jsonify({"reply": f"SSL connection error: {str(e)}"})
+            continue
+        except requests.exceptions.RequestException as e:
+            print(f"Request error on attempt {attempt + 1}: {str(e)}")
+            if attempt == max_retries - 1:
+                return jsonify({"reply": f"Network error: {str(e)}"})
+            continue
+
     try:
-        response = requests.post(GEMINI_URL, headers=headers, data=json.dumps(body))
         result = response.json()
 
         if "candidates" in result:
