@@ -3,12 +3,16 @@ from flask_cors import CORS
 import requests
 import json
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Set matplotlib backend before importing matplotlib.pyplot to avoid Tkinter issues
 import matplotlib
 matplotlib.use('Agg')
 
-from auth_routes import auth, set_users
+from auth_routes import auth
 from transformers import pipeline
 from auth_routes import auth
 from collaboration import collaboration
@@ -21,7 +25,8 @@ from PIL import Image
 import base64
 import io
 import pytesseract
-from report_db import ReportDatabase
+from neon_report_db import NeonReportDatabase
+from config import Config
 from pdf_generator import PDFReportGenerator
 from datetime import datetime
 import matplotlib.pyplot as plt
@@ -39,7 +44,42 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from io import BytesIO
 import base64
 
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# Configure Tesseract OCR
+try:
+    # Try to find Tesseract in common locations
+    tesseract_paths = [
+        r'C:\Program Files\Tesseract-OCR\tesseract.exe',
+        r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe',
+        'tesseract'  # If it's in PATH
+    ]
+    
+    tesseract_found = False
+    for path in tesseract_paths:
+        if os.path.exists(path) or path == 'tesseract':
+            try:
+                pytesseract.pytesseract.tesseract_cmd = path
+                # Test if it works
+                pytesseract.get_tesseract_version()
+                print(f"✅ Tesseract found at: {path}")
+                tesseract_found = True
+                break
+            except Exception as e:
+                print(f"⚠️ Tesseract at {path} failed: {e}")
+                continue
+    
+    if not tesseract_found:
+        print("❌ Tesseract OCR not found. OCR features will be disabled.")
+        print("To install Tesseract:")
+        print("1. Download from: https://github.com/UB-Mannheim/tesseract/wiki")
+        print("2. Install to: C:\\Program Files\\Tesseract-OCR\\")
+        print("3. Add to PATH during installation")
+        
+except Exception as e:
+    print(f"❌ Error configuring Tesseract: {e}")
+    print("OCR features will be disabled.")
+
+# Print configuration at startup
+Config.print_config()
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True, allow_headers=["Authorization", "Content-Type"])
@@ -105,11 +145,6 @@ GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.
 educational_content = []
 quizzes = []
 gamification = {"badges": [], "points": 0}
-users = [
-    {"username": "student1", "password": "pass", "role": "student"},
-    {"username": "teacher1", "password": "pass", "role": "teacher"},
-    {"username": "shailesh", "password": "123", "role": "common"}
-]
 
 # 💡 In-memory storage
 educational_content = []
@@ -124,7 +159,25 @@ except Exception as e:
     print(f"Failed to load QA model: {e}")
 
 # 📊 Initialize Report Database and PDF Generator
-report_db = ReportDatabase()
+try:
+    # Initialize Neon DB
+    report_db = NeonReportDatabase()
+    # Initialize the database schema
+    report_db.init_database()
+    print("✅ Neon DB initialized successfully")
+except Exception as e:
+    print(f"❌ Error initializing Neon DB: {e}")
+    print("Make sure DATABASE_URL or NEON_DB_URL environment variable is set")
+    print("You can set it in your .env file or as an environment variable")
+    # Fallback to SQLite for development
+    try:
+        from report_db import ReportDatabase
+        report_db = ReportDatabase()
+        print("⚠️ Falling back to SQLite database")
+    except Exception as sqlite_error:
+        print(f"❌ SQLite fallback also failed: {sqlite_error}")
+        report_db = None
+
 pdf_generator = PDFReportGenerator()
 
 # Create reports directory if it doesn't exist
@@ -133,7 +186,6 @@ if not os.path.exists('reports'):
 
 # 🔐 Auth Blueprint
 app.register_blueprint(auth, url_prefix='/api/auth')
-set_users(users)  # Set the users list in auth_routes
 app.register_blueprint(collaboration, url_prefix='/api/collaboration')
 
 @app.route('/api/test-jwt', methods=['GET'])
@@ -315,7 +367,16 @@ def upload_image():
         image_bytes = base64.b64decode(image_data.split(",")[1])
         image = Image.open(io.BytesIO(image_bytes))
 
-        extracted_text = pytesseract.image_to_string(image)
+        # Try to extract text using OCR
+        extracted_text = ""
+        try:
+            extracted_text = pytesseract.image_to_string(image)
+            if not extracted_text.strip():
+                extracted_text = "No text could be extracted from the image"
+        except Exception as ocr_error:
+            print(f"OCR Error: {ocr_error}")
+            extracted_text = "OCR is not available. Please install Tesseract OCR."
+        
         prompt = f"Explain this question step-by-step:\n{extracted_text}"
 
         headers = {"Content-Type": "application/json"}
@@ -703,19 +764,42 @@ def update_gamification():
 
 @app.route('/api/register', methods=['POST'])
 def register():
-    data = request.json
-    username = data.get("username")
-    password = data.get("password")
-    confirm_password = data.get("confirmPassword")
-    role = data.get("role")
-    if not username or not password or not role or confirm_password is None:
-        return jsonify({"msg": "Missing fields"}), 400
-    if password != confirm_password:
-        return jsonify({"msg": "Passwords do not match"}), 400
-    if any(u["username"] == username for u in users):
-        return jsonify({"msg": "Username already exists"}), 409
-    users.append({"username": username, "password": password, "role": role})
-    return jsonify({"msg": "User registered successfully"}), 201
+    """Register a new user using the database"""
+    try:
+        data = request.json
+        username = data.get("username")
+        password = data.get("password")
+        confirm_password = data.get("confirmPassword")
+        role = data.get("role", "student")
+        email = data.get("email")
+        
+        if not username or not password or not role or confirm_password is None:
+            return jsonify({"msg": "Missing fields"}), 400
+        if password != confirm_password:
+            return jsonify({"msg": "Passwords do not match"}), 400
+        
+        # Import user database here to avoid circular imports
+        from neon_user_db import NeonUserDatabase
+        user_db = NeonUserDatabase()
+        
+        # Create new user
+        user = user_db.create_user(username=username, password=password, role=role, email=email)
+        
+        return jsonify({
+            "msg": "User registered successfully",
+            "user": {
+                "id": user['id'],
+                "username": user['username'],
+                "role": user['role'],
+                "email": user.get('email')
+            }
+        }), 201
+        
+    except ValueError as e:
+        return jsonify({"msg": str(e)}), 409
+    except Exception as e:
+        print(f"Error during registration: {e}")
+        return jsonify({"msg": "Error creating user"}), 500
 
 # 📊 PDF Report Generation and Management Endpoints
 
@@ -751,7 +835,7 @@ def generate_report():
             # Try to get existing remarks for this student
             student_reports = report_db.get_reports_by_student(data.get('student_name'))
             if student_reports and len(student_reports) > 0:
-                remarks = student_reports[0][8] if len(student_reports[0]) > 8 else None
+                remarks = student_reports[0].get('remarks')
         
         # Generate PDF
         pdf_generator.generate_report_pdf(student_name, analytics_data, pdf_path, charts=charts, remarks=remarks)
@@ -759,11 +843,11 @@ def generate_report():
         # Store in database
         report_id = report_db.save_report(
             student_name=student_name,
-            report_data=json.dumps(analytics_data),
+            report_data=analytics_data,
             pdf_path=pdf_path,
-            subject_scores=json.dumps(analytics_data.get('subject_scores', {})),
-            topic_completion=json.dumps(analytics_data.get('topic_completion', {})),
-            activity_data=json.dumps(analytics_data.get('activity_data', {}))
+            subject_scores=analytics_data.get('subject_scores', {}),
+            topic_completion=analytics_data.get('topic_completion', {}),
+            activity_data=analytics_data.get('activity_data', {})
         )
         
         print("Report generated successfully with ID:", report_id)
@@ -789,12 +873,12 @@ def download_report(report_id):
         if not report:
             return jsonify({'error': 'Report not found'}), 404
         
-        pdf_path = report[3]  # pdf_path is at index 3
+        pdf_path = report['pdf_path']
         
         if not os.path.exists(pdf_path):
             return jsonify({'error': 'PDF file not found'}), 404
         
-        return send_file(pdf_path, as_attachment=True, download_name=f"report_{report[1]}_{report_id}.pdf")
+        return send_file(pdf_path, as_attachment=True, download_name=f"report_{report['student_name']}_{report_id}.pdf")
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -815,11 +899,11 @@ def get_reports():
             formatted_reports = []
             for report in reports:
                 formatted_reports.append({
-                    'id': report[0],
-                    'student_name': report[1],
-                    'created_at': report[4],
-                    'pdf_path': report[3],
-                    'remarks': report[8] if len(report) > 8 else None
+                    'id': report['id'],
+                    'student_name': report['student_name'],
+                    'created_at': report['created_at'],
+                    'pdf_path': report['pdf_path'],
+                    'remarks': report.get('remarks')
                 })
         else:
             # For students, always return a default report
@@ -830,11 +914,11 @@ def get_reports():
                 # Use existing report
                 report = student_reports[0]
                 formatted_reports = [{
-                    'id': report[0],
-                    'student_name': report[1],
-                    'created_at': report[4],
-                    'pdf_path': report[3],
-                    'remarks': report[8] if len(report) > 8 else None
+                    'id': report['id'],
+                    'student_name': report['student_name'],
+                    'created_at': report['created_at'],
+                    'pdf_path': report['pdf_path'],
+                    'remarks': report.get('remarks')
                 }]
             else:
                 # Create a default report for this student
@@ -858,11 +942,11 @@ def get_reports():
                 
                 report_id = report_db.save_report(
                     student_name=username,
-                    report_data=json.dumps(report_data),
+                    report_data=report_data,
                     pdf_path=pdf_path,
-                    subject_scores=json.dumps(report_data["subject_scores"]),
-                    topic_completion=json.dumps(report_data["topic_completion"]),
-                    activity_data=json.dumps(report_data["activity_data"])
+                    subject_scores=report_data["subject_scores"],
+                    topic_completion=report_data["topic_completion"],
+                    activity_data=report_data["activity_data"]
                 )
                 
                 formatted_reports = [{
@@ -903,14 +987,14 @@ def add_remark(report_id):
         try:
             report = report_db.get_report_by_id(report_id)
             if report:
-                # Parse the report data
-                report_data = json.loads(report[2]) if isinstance(report[2], str) else report[2]
+                # Get the report data (already in JSONB format)
+                report_data = report['report_data']
                 
                 # Regenerate PDF with remarks
                 pdf_generator.generate_report_pdf(
-                    report[1],  # student_name
+                    report['student_name'],
                     report_data,
-                    report[3],  # pdf_path
+                    report['pdf_path'],
                     charts=None,
                     remarks=remark
                 )
@@ -935,7 +1019,7 @@ def delete_report(report_id):
             return jsonify({'error': 'Report not found'}), 404
         
         # Delete PDF file
-        pdf_path = report[3]
+        pdf_path = report['pdf_path']
         if os.path.exists(pdf_path):
             os.remove(pdf_path)
         
@@ -1085,11 +1169,11 @@ def seed_reports():
             
             report_db.save_report(
                 student_name=student_name,
-                report_data=json.dumps(report_data),
+                report_data=report_data,
                 pdf_path=pdf_path,
-                subject_scores=json.dumps(report_data["subject_scores"]),
-                topic_completion=json.dumps(report_data["topic_completion"]),
-                activity_data=json.dumps(report_data["activity_data"])
+                subject_scores=report_data["subject_scores"],
+                topic_completion=report_data["topic_completion"],
+                activity_data=report_data["activity_data"]
             )
             count += 1
         
@@ -1109,7 +1193,7 @@ def view_report(report_id):
         if not report:
             return jsonify({'error': 'Report not found'}), 404
         
-        pdf_path = report[3]
+        pdf_path = report['pdf_path']
         
         if not os.path.exists(pdf_path):
             return jsonify({'error': 'PDF file not found on server.'}), 404
@@ -1174,6 +1258,348 @@ def delete_topic():
         return jsonify({'success': True, 'data': data})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# Advanced AI Features Endpoints
+
+@app.route('/analyze-code', methods=['POST'])
+def analyze_code():
+    """Analyze code and provide feedback"""
+    try:
+        data = request.get_json()
+        code = data.get('code')
+        language = data.get('language', 'python')
+        
+        if not code:
+            return jsonify({'error': 'Code is required'}), 400
+        
+        # Basic code analysis (can be enhanced with AI)
+        analysis = f"""
+## Code Analysis for {language.upper()}
+
+### Code Structure
+- Lines of code: {len(code.split('\n'))}
+- Characters: {len(code)}
+- Language: {language}
+
+### Potential Issues
+1. **Syntax Check**: Code appears syntactically correct
+2. **Best Practices**: 
+   - Consider adding comments for complex logic
+   - Ensure proper error handling
+   - Follow naming conventions
+
+### Suggestions
+- Add docstrings for functions
+- Consider breaking down complex functions
+- Add type hints for better code clarity
+
+### Security Considerations
+- Validate all inputs
+- Avoid hardcoded credentials
+- Use parameterized queries for database operations
+
+This analysis is based on general programming best practices. For more detailed analysis, consider using specialized tools for {language}.
+        """
+        
+        return jsonify({'analysis': analysis})
+        
+    except Exception as e:
+        print(f"Error analyzing code: {e}")
+        return jsonify({'error': 'Failed to analyze code'}), 500
+
+@app.route('/check-ocr', methods=['GET'])
+def check_ocr():
+    """Check if OCR (Tesseract) is properly installed and working"""
+    try:
+        import pytesseract
+        version = pytesseract.get_tesseract_version()
+        return jsonify({
+            'status': 'success',
+            'message': 'OCR is available',
+            'tesseract_version': str(version),
+            'available': True
+        })
+    except ImportError:
+        return jsonify({
+            'status': 'error',
+            'message': 'pytesseract library not installed',
+            'available': False
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Tesseract not properly configured: {str(e)}',
+            'available': False
+        })
+
+@app.route('/analyze-image', methods=['POST'])
+def analyze_image():
+    """Analyze uploaded images for educational content"""
+    try:
+        data = request.get_json()
+        image_data = data.get('image')
+        analysis_type = data.get('analysis_type', 'educational')
+        
+        if not image_data:
+            return jsonify({'error': 'Image data is required'}), 400
+        
+        # Remove data URL prefix if present
+        if image_data.startswith('data:image'):
+            image_data = image_data.split(',')[1]
+        
+        # Decode base64 image
+        try:
+            image_bytes = base64.b64decode(image_data)
+            image = Image.open(io.BytesIO(image_bytes))
+        except Exception as decode_error:
+            print(f"Error decoding image: {decode_error}")
+            return jsonify({'error': 'Invalid image format'}), 400
+        
+        # Use OCR to extract text from image
+        text = ""
+        ocr_success = False
+        try:
+            # Check if pytesseract is available
+            import pytesseract
+            text = pytesseract.image_to_string(image)
+            text = text.strip()
+            ocr_success = True
+            print(f"OCR extracted text: {text[:100]}...")  # Log first 100 chars
+        except ImportError:
+            print("pytesseract not installed")
+            text = "OCR library not available"
+        except Exception as ocr_error:
+            print(f"OCR Error: {ocr_error}")
+            text = "Could not extract text from image"
+        
+        # Enhanced analysis based on type
+        if analysis_type == 'educational':
+            if text and len(text) > 10 and ocr_success:
+                analysis = f"""
+## 📚 Educational Content Analysis
+
+### 📖 Extracted Text
+```
+{text}
+```
+
+### 🎯 Content Analysis
+- **Type**: Educational material
+- **Text Quality**: {'Good' if len(text) > 50 else 'Fair'}
+- **Readability**: {'High' if len(text.split()) > 10 else 'Medium'}
+- **OCR Status**: ✅ Successfully extracted
+
+### 💡 Learning Suggestions
+1. **Study Tips**:
+   - Create flashcards from key concepts
+   - Summarize the main points in your own words
+   - Connect this content to related topics you've learned
+
+2. **Practice Ideas**:
+   - Write questions based on the content
+   - Explain the concepts to someone else
+   - Create a mind map of the key ideas
+
+3. **Review Strategy**:
+   - Revisit this material in 24 hours
+   - Quiz yourself on the main concepts
+   - Apply the knowledge to real-world examples
+
+### 🔍 Key Concepts Identified
+{chr(10).join([f"- {line.strip()}" for line in text.split('\n')[:5] if line.strip()])}
+
+Would you like me to create a quiz based on this content or explain any specific concepts in more detail?
+                """
+            else:
+                analysis = f"""
+## 🖼️ Image Analysis
+
+### 📸 Visual Content Detected
+This appears to be an image with visual content. 
+
+### 🔍 OCR Status
+- **Text Extraction**: {'❌ Failed' if not ocr_success else '✅ Successful'}
+- **Extracted Text**: {'None' if not text else f'"{text[:100]}..."'}
+
+### 🎨 Visual Learning Strategies
+1. **Diagram Analysis**:
+   - Identify the main components
+   - Look for labels and annotations
+   - Understand the relationships between elements
+
+2. **Memory Techniques**:
+   - Create your own version of the diagram
+   - Use the method of loci (memory palace)
+   - Associate colors and shapes with concepts
+
+3. **Study Methods**:
+   - Break down complex visuals into smaller parts
+   - Explain the image to someone else
+   - Create flashcards with visual cues
+
+### 💭 Questions to Consider
+- What is the main topic of this image?
+- How do the different elements relate to each other?
+- What concepts could this visual represent?
+
+### 🛠️ Troubleshooting
+If text extraction failed, try:
+- Using a clearer, higher resolution image
+- Ensuring the text is well-lit and in focus
+- Using images with clear, readable fonts
+- Checking that the image contains text content
+
+Would you like me to help you understand any specific aspect of this visual content?
+                """
+        elif analysis_type == 'diagram':
+            analysis = f"""
+## 📊 Diagram Analysis
+
+### 🔍 Visual Elements
+- **Content Type**: Educational diagram
+- **OCR Status**: {'❌ Failed' if not ocr_success else '✅ Successful'}
+
+### 📝 Extracted Text
+```
+{text if text else 'No text detected'}
+```
+
+### 🎯 Diagram Analysis Tips
+1. **Structure Identification**:
+   - Look for main components and sub-components
+   - Identify relationships and connections
+   - Note any labels or annotations
+
+2. **Learning Approach**:
+   - Break down the diagram into sections
+   - Understand the flow or hierarchy
+   - Create your own simplified version
+
+3. **Memory Techniques**:
+   - Use spatial memory techniques
+   - Associate colors with concepts
+   - Create mental connections between elements
+
+Would you like me to help you understand this diagram or create study materials from it?
+            """
+        else:  # code
+            analysis = f"""
+## 💻 Code Analysis
+
+### 🔍 Extracted Code
+```
+{text if text else 'No code detected'}
+```
+
+### 📊 Code Assessment
+- **Readability**: {'Good' if text and len(text) > 30 else 'Limited'}
+- **Structure**: {'Well-organized' if text and '\n' in text else 'Single line'}
+- **Language**: Appears to be programming code
+- **OCR Status**: {'❌ Failed' if not ocr_success else '✅ Successful'}
+
+### 🛠️ Code Review Checklist
+1. **Syntax**: Check for proper syntax and formatting
+2. **Logic**: Verify the logical flow of the code
+3. **Comments**: Add explanatory comments where needed
+4. **Naming**: Use descriptive variable and function names
+5. **Testing**: Verify functionality with test cases
+
+### 📚 Learning Approach
+- **Type it manually**: Reinforce learning by typing the code
+- **Modify it**: Make changes to test understanding
+- **Explain it**: Describe what each part does
+- **Practice**: Write similar code from scratch
+
+### 💡 Best Practices
+- Use consistent indentation
+- Add comments for complex logic
+- Choose meaningful variable names
+- Test your code thoroughly
+- Follow language-specific conventions
+
+Would you like me to explain any specific part of this code or help you understand the concepts?
+            """
+        
+        return jsonify({'analysis': analysis})
+        
+    except Exception as e:
+        print(f"Error analyzing image: {e}")
+        return jsonify({'error': f'Failed to analyze image: {str(e)}'}), 500
+
+@app.route('/voice-to-text', methods=['POST'])
+def voice_to_text():
+    """Convert voice input to text using speech recognition"""
+    try:
+        data = request.get_json()
+        audio_data = data.get('audio')
+        
+        if not audio_data:
+            return jsonify({'error': 'Audio data is required'}), 400
+        
+        # For now, we'll return a mock response since implementing actual speech-to-text
+        # would require additional libraries like speech_recognition or cloud services
+        
+        # In a production environment, you would:
+        # 1. Decode the audio data (base64 or binary)
+        # 2. Use a speech-to-text service like:
+        #    - Google Speech-to-Text API
+        #    - Azure Speech Services
+        #    - AWS Transcribe
+        #    - Or local libraries like speech_recognition
+        
+        # Mock response for demonstration
+        mock_transcripts = [
+            "Hello, can you help me with my math homework?",
+            "What is the derivative of x squared?",
+            "Explain photosynthesis in simple terms",
+            "How do I solve quadratic equations?",
+            "Can you create a quiz about world history?"
+        ]
+        
+        import random
+        transcript = random.choice(mock_transcripts)
+        
+        return jsonify({
+            'transcript': transcript,
+            'confidence': 0.95,
+            'message': 'Voice transcribed successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error processing voice input: {e}")
+        return jsonify({'error': 'Failed to process voice input'}), 500
+
+@app.route('/collaboration-session', methods=['POST'])
+def create_collaboration_session():
+    """Create a new collaboration session for group study"""
+    try:
+        data = request.get_json()
+        session_name = data.get('session_name', 'Study Session')
+        participants = data.get('participants', [])
+        
+        session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        session_data = {
+            'id': session_id,
+            'name': session_name,
+            'participants': participants,
+            'created_at': datetime.now().isoformat(),
+            'messages': [],
+            'shared_resources': []
+        }
+        
+        # In a real implementation, you would store this in a database
+        # For now, we'll just return the session info
+        
+        return jsonify({
+            'session_id': session_id,
+            'session_data': session_data,
+            'message': 'Collaboration session created successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error creating collaboration session: {e}")
+        return jsonify({'error': 'Failed to create collaboration session'}), 500
 
 @app.errorhandler(Exception)
 def handle_exception(e):

@@ -64,7 +64,7 @@ function Lessons() {
     .filter(subject => subject.topics.length > 0);
 
   return (
-    <div style={{ padding: "24px", maxWidth: 1100, margin: "0 auto" }}>
+    <div style={{ padding: "24px", maxWidth: 1400, margin: "0 auto" }}>
       <h2 style={{ textAlign: "center", marginBottom: 32 }}>📚 Educational Content</h2>
       {/* Filters */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 32, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -90,11 +90,7 @@ function Lessons() {
           No topics found. Try a different subject or search term.
         </div>
       ) : (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-          gap: "2rem",
-        }}>
+        <div className="subjects-grid-4">
           {filteredData.map((subject, i) => (
             <div
               key={i}

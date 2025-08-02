@@ -1,5 +1,6 @@
 .collaboration-container {
-  max-width: 1200px;
+  max-width: 1600px;
+  width: 95%;
   margin: 0 auto;
   padding: 2rem;
   background: #fff;
@@ -498,6 +499,8 @@
 @media (max-width: 768px) {
   .collaboration-container {
     padding: 1rem;
+    width: 98%;
+    max-width: none;
   }
   
   .collaboration-header {

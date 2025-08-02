@@ -30,8 +30,8 @@
 
 .subjects-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
@@ -44,6 +44,10 @@
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 220px;
 }
 
 .subject-card::before {
@@ -77,9 +81,16 @@
 
 .subject-card p {
   color: #666;
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 1rem 0;
   font-size: 1rem;
   line-height: 1.5;
+  flex-grow: 1;
+}
+
+.subject-card .btn-primary {
+  margin-top: auto;
+  align-self: center;
+  flex-shrink: 0;
 }
 
 .btn-primary {
@@ -93,6 +104,10 @@
   transition: all 0.2s;
   font-weight: 600;
   min-width: 120px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -439,6 +454,20 @@
 }
 
 /* Responsive Design */
+@media (max-width: 1200px) {
+  .subjects-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .subjects-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+}
+
 @media (max-width: 768px) {
   .quiz-container {
     padding: 1rem;
@@ -449,7 +478,7 @@
   }
   
   .subjects-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
   }
   
@@ -487,5 +516,12 @@
   
   .score-number {
     font-size: 2rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .subjects-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
   }
 } 

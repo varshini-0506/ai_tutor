@@ -1,22 +1,14 @@
-Flask
-Flask-Cors
-Flask-JWT-Extended
-psycopg2-binary
-python-dotenv
-bcrypt
-flask-jwt-extended
-requests
-transformers
-youtube-transcript-api
-Pillow
-pytesseract
-<<<<<<< HEAD
-reportlab
-=======
-<<<<<<< HEAD
-reportlab
-matplotlib
-numpy
-=======
->>>>>>> e2bbb3e36fe4f6ddaf110528e3cb057efa9f6ceb
->>>>>>> 24b682c4d52d32a9e4b98da8bfef3526877d51c8
+Flask==2.3.3
+Flask-Cors==4.0.0
+Flask-JWT-Extended==4.5.3
+psycopg2-binary==2.9.7
+python-dotenv==1.0.0
+bcrypt==4.0.1
+requests==2.31.0
+transformers==4.35.0
+youtube-transcript-api==0.6.1
+Pillow==10.0.1
+pytesseract==0.3.10
+reportlab==4.0.4
+matplotlib==3.7.2
+numpy==1.24.3
