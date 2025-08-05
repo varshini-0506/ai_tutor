@@ -1,4 +1,5 @@
 import { useAuth } from './AuthContext.jsx';
+import './Home.css';
 
 export default function Home() {
   const { user } = useAuth();
