@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext.jsx';
+import './Login.css';
 
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
@@ -83,37 +84,91 @@ export default function Login({ onLogin }) {
   };
 
   return (
-    <div>
+    <div className="login-container">
       {showSignUp ? (
-        <form onSubmit={handleSignUp} style={{maxWidth: 350, margin: '2rem auto', background: '#fff', padding: '2rem', borderRadius: 12, boxShadow: '0 2px 16px rgba(0,0,0,0.08)'}}>
+        <form onSubmit={handleSignUp} className="login-form">
           <h2>Sign Up</h2>
-          <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" required style={{width: '100%', marginBottom: 12, padding: 8}} />
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required style={{width: '100%', marginBottom: 12, padding: 8}} />
-          <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Confirm Password" required style={{width: '100%', marginBottom: 12, padding: 8}} />
-          <select value={role} onChange={e => setRole(e.target.value)} style={{width: '100%', marginBottom: 12, padding: 8}}>
-            <option value="student">Student</option>
-            <option value="teacher">Teacher</option>
-            <option value="common">Common</option>
-          </select>
-          <button type="submit" style={{width: '100%', background: '#28a745', color: '#fff', border: 'none', borderRadius: 6, padding: 10, fontSize: 16, cursor: 'pointer'}}>Sign Up</button>
-          <button type="button" onClick={() => { setShowSignUp(false); setError(''); setSuccess(''); setConfirmPassword(''); }} style={{width: '100%', marginTop: 8, background: '#007bff', color: '#fff', border: 'none', borderRadius: 6, padding: 10, fontSize: 16, cursor: 'pointer'}}>Back to Login</button>
-          {error && <div style={{color: 'red', marginTop: 10}}>{error}</div>}
-          {success && <div style={{color: 'green', marginTop: 10}}>{success}</div>}
+          <div className="form-group">
+            <input 
+              value={username} 
+              onChange={e => setUsername(e.target.value)} 
+              placeholder="Username" 
+              required 
+            />
+          </div>
+          <div className="form-group">
+            <input 
+              type="password" 
+              value={password} 
+              onChange={e => setPassword(e.target.value)} 
+              placeholder="Password" 
+              required 
+            />
+          </div>
+          <div className="form-group">
+            <input 
+              type="password" 
+              value={confirmPassword} 
+              onChange={e => setConfirmPassword(e.target.value)} 
+              placeholder="Confirm Password" 
+              required 
+            />
+          </div>
+          <div className="form-group">
+            <select value={role} onChange={e => setRole(e.target.value)}>
+              <option value="student">Student</option>
+              <option value="teacher">Teacher</option>
+              <option value="common">Common</option>
+            </select>
+          </div>
+          <button type="submit" className="btn-primary">Sign Up</button>
+          <button 
+            type="button" 
+            onClick={() => { setShowSignUp(false); setError(''); setSuccess(''); setConfirmPassword(''); }} 
+            className="btn-secondary"
+          >
+            Back to Login
+          </button>
+          {error && <div className="error-message">{error}</div>}
+          {success && <div className="success-message">{success}</div>}
         </form>
       ) : (
-        <form onSubmit={handleSubmit} style={{maxWidth: 350, margin: '2rem auto', background: '#fff', padding: '2rem', borderRadius: 12, boxShadow: '0 2px 16px rgba(0,0,0,0.08)'}}>
+        <form onSubmit={handleSubmit} className="login-form">
           <h2>Login</h2>
-          <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" required style={{width: '100%', marginBottom: 12, padding: 8}} />
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required style={{width: '100%', marginBottom: 12, padding: 8}} />
-          <select value={role} onChange={e => setRole(e.target.value)} style={{width: '100%', marginBottom: 12, padding: 8}}>
-            <option value="student">Student</option>
-            <option value="teacher">Teacher</option>
-            <option value="common">Common</option>
-          </select>
-          <button type="submit" style={{width: '100%', background: '#007bff', color: '#fff', border: 'none', borderRadius: 6, padding: 10, fontSize: 16, cursor: 'pointer'}}>Login</button>
-          <button type="button" onClick={() => { setShowSignUp(true); setError(''); setSuccess(''); setConfirmPassword(''); }} style={{width: '100%', marginTop: 8, background: '#28a745', color: '#fff', border: 'none', borderRadius: 6, padding: 10, fontSize: 16, cursor: 'pointer'}}>Sign Up</button>
-          {error && <div style={{color: 'red', marginTop: 10}}>{error}</div>}
-          {success && <div style={{color: 'green', marginTop: 10}}>{success}</div>}
+          <div className="form-group">
+            <input 
+              value={username} 
+              onChange={e => setUsername(e.target.value)} 
+              placeholder="Username" 
+              required 
+            />
+          </div>
+          <div className="form-group">
+            <input 
+              type="password" 
+              value={password} 
+              onChange={e => setPassword(e.target.value)} 
+              placeholder="Password" 
+              required 
+            />
+          </div>
+          <div className="form-group">
+            <select value={role} onChange={e => setRole(e.target.value)}>
+              <option value="student">Student</option>
+              <option value="teacher">Teacher</option>
+              <option value="common">Common</option>
+            </select>
+          </div>
+          <button type="submit" className="btn-primary">Login</button>
+          <button 
+            type="button" 
+            onClick={() => { setShowSignUp(true); setError(''); setSuccess(''); setConfirmPassword(''); }} 
+            className="btn-secondary"
+          >
+            Sign Up
+          </button>
+          {error && <div className="error-message">{error}</div>}
+          {success && <div className="success-message">{success}</div>}
         </form>
       )}
     </div>
