@@ -16,11 +16,11 @@
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   border-radius: 16px;
-  padding: 2.5rem;
+  padding: 3.5rem;
   box-shadow: 0 10px 30px rgba(99, 102, 241, 0.2);
   border: 1px solid rgba(99, 102, 241, 0.1);
   width: 100%;
-  max-width: 400px;
+  max-width: 600px;
   text-align: center;
   max-height: 90vh;
   overflow-y: auto;
@@ -184,8 +184,9 @@
   }
   
   .login-form {
-    padding: 2rem;
+    padding: 2.5rem;
     max-height: 95vh;
+    max-width: 550px;
   }
   
   .login-form h2 {

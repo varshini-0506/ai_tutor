@@ -17,8 +17,15 @@ export default function StudentManagement() {
   const [students] = useState(mockStudents);
   const [selectedStudent, setSelectedStudent] = useState(null);
 
-  const openModal = (student) => setSelectedStudent(student);
-  const closeModal = () => setSelectedStudent(null);
+  const openModal = (student) => {
+    setSelectedStudent(student);
+    document.body.classList.add('modal-open');
+  };
+  
+  const closeModal = () => {
+    setSelectedStudent(null);
+    document.body.classList.remove('modal-open');
+  };
 
   return (
     <div className="student-management">
@@ -52,13 +59,13 @@ export default function StudentManagement() {
 
       {/* Modal for student details */}
       {selectedStudent && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
+        <div className="student-modal-overlay" onClick={closeModal}>
+          <div className="student-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="student-modal-header">
               <h3>Student Details</h3>
-              <button onClick={closeModal} className="close-button">&times;</button>
+              <button onClick={closeModal} className="student-close-button">&times;</button>
             </div>
-            <div className="modal-body">
+            <div className="student-modal-body">
               <div className="student-avatar">{getInitials(selectedStudent.name)}</div>
               <p><strong>Name:</strong> {selectedStudent.name}</p>
               <p><strong>Email:</strong> {selectedStudent.email}</p>

@@ -46,19 +46,19 @@ function StudentDashboard() {
   const [success, setSuccess] = useState('');
 
   const subjectMasteryData = {
-    labels: ['Data Structures', 'OS', 'DBMS', 'Networks', 'AI', 'ML'],
+    labels: ['Data Structures', 'Operating Systems', 'Database Management Systems', 'Computer Networks', 'Computer Organization & Architecture', 'Software Engineering'],
     datasets: [{
       label: 'Mastery',
-      data: [88, 75, 92, 80, 65, 95],
+      data: [88, 75, 92, 80, 85, 78],
       backgroundColor: ['#a6cee3', '#b2df8a', '#fdbf6f', '#cab2d6', '#fb9a99', '#99d8c9'],
       borderRadius: 6,
     }],
   };
 
   const topicCompletionData = {
-    labels: ['Data Structures', 'OS', 'DBMS', 'Networks', 'AI', 'ML'],
+    labels: ['Data Structures', 'Operating Systems', 'Database Management Systems', 'Computer Networks', 'Computer Organization & Architecture', 'Software Engineering'],
     datasets: [{
-      data: [18, 15, 22, 15, 10, 20],
+      data: [18, 15, 22, 15, 12, 16],
       backgroundColor: ['#a6cee3', '#b2df8a', '#fdbf6f', '#cab2d6', '#fb9a99', '#99d8c9'],
       borderColor: '#fff',
       borderWidth: 3,
