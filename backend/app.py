@@ -24,7 +24,12 @@ import re
 from PIL import Image
 import base64
 import io
-import pytesseract
+try:
+    import pytesseract
+    PYTESSERACT_AVAILABLE = True
+except ImportError:
+    PYTESSERACT_AVAILABLE = False
+    print("Warning: pytesseract not available. OCR features will be disabled.")
 from neon_report_db import NeonReportDatabase
 from config import Config
 from pdf_generator import PDFReportGenerator
@@ -1461,20 +1466,21 @@ This analysis is based on general programming best practices. For more detailed 
 def check_ocr():
     """Check if OCR (Tesseract) is properly installed and working"""
     try:
-        import pytesseract
-        version = pytesseract.get_tesseract_version()
-        return jsonify({
-            'status': 'success',
-            'message': 'OCR is available',
-            'tesseract_version': str(version),
-            'available': True
-        })
-    except ImportError:
-        return jsonify({
-            'status': 'error',
-            'message': 'pytesseract library not installed',
-            'available': False
-        })
+        if PYTESSERACT_AVAILABLE:
+            import pytesseract
+            version = pytesseract.get_tesseract_version()
+            return jsonify({
+                'status': 'success',
+                'message': 'OCR is available',
+                'tesseract_version': str(version),
+                'available': True
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'pytesseract library not installed',
+                'available': False
+            })
     except Exception as e:
         return jsonify({
             'status': 'error',
@@ -1510,14 +1516,15 @@ def analyze_image():
         ocr_success = False
         try:
             # Check if pytesseract is available
-            import pytesseract
-            text = pytesseract.image_to_string(image)
-            text = text.strip()
-            ocr_success = True
-            print(f"OCR extracted text: {text[:100]}...")  # Log first 100 chars
-        except ImportError:
-            print("pytesseract not installed")
-            text = "OCR library not available"
+            if PYTESSERACT_AVAILABLE:
+                import pytesseract
+                text = pytesseract.image_to_string(image)
+                text = text.strip()
+                ocr_success = True
+                print(f"OCR extracted text: {text[:100]}...")  # Log first 100 chars
+            else:
+                print("pytesseract not installed")
+                text = "OCR library not available"
         except Exception as ocr_error:
             print(f"OCR Error: {ocr_error}")
             text = "Could not extract text from image"
