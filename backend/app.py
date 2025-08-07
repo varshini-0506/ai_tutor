@@ -99,7 +99,7 @@ Config.print_config()
 app = Flask(__name__)
 CORS(app, 
      resources={r"/*": {
-         "origins": ["http://localhost:3000", "http://127.0.0.1:3000", "https://ai-tutor-frontend.onrender.com", "https://ai-tutor-frontend-*.onrender.com", "*"],
+         "origins": ["http://localhost:3000", "http://127.0.0.1:3000", "https://ai-tutor-frontend-kkne.onrender.com", "https://ai-tutor-frontend-*.onrender.com", "*"],
          "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
          "allow_headers": ["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
          "expose_headers": ["Content-Type", "Authorization"],
@@ -308,13 +308,21 @@ def test_headers():
 @app.route('/api/test-cors', methods=['GET', 'POST', 'OPTIONS'])
 def test_cors():
     """Test route specifically for CORS debugging"""
+    print(f"Debug - CORS test called with method: {request.method}")
+    print(f"Debug - Request headers: {dict(request.headers)}")
+    print(f"Debug - Origin: {request.headers.get('Origin', 'No origin header')}")
+    
     if request.method == 'OPTIONS':
+        print("Debug - Handling OPTIONS preflight request")
         response = app.make_default_options_response()
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept,Origin,X-Requested-With')
         response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
+        print(f"Debug - OPTIONS response headers: {dict(response.headers)}")
         return response
+    
+    print("Debug - Handling regular request")
     return jsonify({
         "message": "CORS test successful!", 
         "method": request.method,

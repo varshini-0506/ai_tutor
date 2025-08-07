@@ -20,6 +20,11 @@ except Exception as e:
 
 @auth.route('/signup', methods=['POST'])
 def signup():
+    print(f"Debug - Signup request received")
+    print(f"Debug - Request method: {request.method}")
+    print(f"Debug - Request headers: {dict(request.headers)}")
+    print(f"Debug - Request origin: {request.headers.get('Origin', 'No origin header')}")
+    
     if not user_db:
         return jsonify({'msg': 'User database not initialized'}), 500
         
@@ -54,6 +59,11 @@ def signup():
 
 @auth.route('/login', methods=['POST'])
 def login():
+    print(f"Debug - Login request received")
+    print(f"Debug - Request method: {request.method}")
+    print(f"Debug - Request headers: {dict(request.headers)}")
+    print(f"Debug - Request origin: {request.headers.get('Origin', 'No origin header')}")
+    
     if not user_db:
         return jsonify({'msg': 'User database not initialized'}), 500
         
