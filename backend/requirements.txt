@@ -14,6 +14,9 @@ bcrypt
 # HTTP and API
 requests
 
+# AI and Machine Learning
+transformers
+
 # Media Processing
 youtube-transcript-api
 Pillow

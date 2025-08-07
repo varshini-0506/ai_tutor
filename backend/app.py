@@ -13,10 +13,20 @@ import matplotlib
 matplotlib.use('Agg')
 
 from auth_routes import auth
-from transformers import pipeline
+try:
+    from transformers import pipeline
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_AVAILABLE = False
+    print("Warning: transformers not available. AI features will be disabled.")
 from auth_routes import auth
 from collaboration import collaboration
-from transformers.pipelines import pipeline
+try:
+    from transformers.pipelines import pipeline
+    TRANSFORMERS_PIPELINES_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_PIPELINES_AVAILABLE = False
+    print("Warning: transformers.pipelines not available. AI features will be disabled.")
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
 from collections import Counter
 from youtube_transcript_api import YouTubeTranscriptApi
