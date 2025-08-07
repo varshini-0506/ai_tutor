@@ -69,7 +69,7 @@ export default function Collaboration({ token, role }) {
       console.log('Testing JWT token...');
       console.log('Token to test:', token);
       
-      const response = await fetch('http://127.0.0.1:5000/api/test-jwt-main', {
+      const response = await fetch('https://ai-tutor-backend-m4rr.onrender.com/api/test-jwt-main', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -133,7 +133,7 @@ export default function Collaboration({ token, role }) {
       const headers = { 'Authorization': `Bearer ${token}` };
       console.log('Request headers:', headers);
       
-      const response = await fetch('http://127.0.0.1:5000/api/collaboration/classrooms', {
+      const response = await fetch('https://ai-tutor-backend-m4rr.onrender.com/api/collaboration/classrooms', {
         headers: headers
       });
       console.log('Response status:', response.status);
@@ -162,7 +162,7 @@ export default function Collaboration({ token, role }) {
 
   const loadTeamQuizzes = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/collaboration/team-quizzes', {
+      const response = await fetch('https://ai-tutor-backend-m4rr.onrender.com/api/collaboration/team-quizzes', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -176,7 +176,7 @@ export default function Collaboration({ token, role }) {
 
   const loadMessages = async (classroomId) => {
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/collaboration/classrooms/${classroomId}/messages`, {
+      const response = await fetch(`https://ai-tutor-backend-m4rr.onrender.com/api/collaboration/classrooms/${classroomId}/messages`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -213,7 +213,7 @@ export default function Collaboration({ token, role }) {
         }
       }
       
-      const response = await fetch('http://127.0.0.1:5000/api/collaboration/classrooms', {
+      const response = await fetch('https://ai-tutor-backend-m4rr.onrender.com/api/collaboration/classrooms', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -243,7 +243,7 @@ export default function Collaboration({ token, role }) {
 
   const joinClassroom = async (classroomId) => {
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/collaboration/classrooms/${classroomId}/join`, {
+      const response = await fetch(`https://ai-tutor-backend-m4rr.onrender.com/api/collaboration/classrooms/${classroomId}/join`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -261,7 +261,7 @@ export default function Collaboration({ token, role }) {
 
   const leaveClassroom = async (classroomId) => {
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/collaboration/classrooms/${classroomId}/leave`, {
+      const response = await fetch(`https://ai-tutor-backend-m4rr.onrender.com/api/collaboration/classrooms/${classroomId}/leave`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -285,7 +285,7 @@ export default function Collaboration({ token, role }) {
     if (!newMessage.trim() || !selectedClassroom) return;
 
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/collaboration/classrooms/${selectedClassroom.id}/messages`, {
+      const response = await fetch(`https://ai-tutor-backend-m4rr.onrender.com/api/collaboration/classrooms/${selectedClassroom.id}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -316,7 +316,7 @@ export default function Collaboration({ token, role }) {
 
   const joinTeamQuiz = async (quizId) => {
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/collaboration/team-quizzes/${quizId}/join`, {
+      const response = await fetch(`https://ai-tutor-backend-m4rr.onrender.com/api/collaboration/team-quizzes/${quizId}/join`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -334,7 +334,7 @@ export default function Collaboration({ token, role }) {
 
   const startTeamQuiz = async (quizId) => {
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/collaboration/team-quizzes/${quizId}/start`, {
+      const response = await fetch(`https://ai-tutor-backend-m4rr.onrender.com/api/collaboration/team-quizzes/${quizId}/start`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -371,7 +371,7 @@ export default function Collaboration({ token, role }) {
     }
 
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/collaboration/team-quizzes', {
+      const response = await fetch('https://ai-tutor-backend-m4rr.onrender.com/api/collaboration/team-quizzes', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -405,7 +405,7 @@ export default function Collaboration({ token, role }) {
   const loadSubjects = async () => {
     try {
       console.log('Loading subjects...');
-      const response = await fetch('http://127.0.0.1:5000/api/subjects');
+      const response = await fetch('https://ai-tutor-backend-m4rr.onrender.com/api/subjects');
       console.log('Subjects response status:', response.status);
       
       if (response.ok) {
@@ -452,7 +452,7 @@ export default function Collaboration({ token, role }) {
 
   const loadTopics = async (subject) => {
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/topics/${encodeURIComponent(subject)}`);
+      const response = await fetch(`https://ai-tutor-backend-m4rr.onrender.com/api/topics/${encodeURIComponent(subject)}`);
       if (response.ok) {
         const data = await response.json();
         setTopics(data);
@@ -467,7 +467,7 @@ export default function Collaboration({ token, role }) {
       setIsGeneratingQuiz(true);
       setError('');
       
-      const response = await fetch(`http://127.0.0.1:5000/api/generate-quiz/${encodeURIComponent(subject)}`);
+      const response = await fetch(`https://ai-tutor-backend-m4rr.onrender.com/api/generate-quiz/${encodeURIComponent(subject)}`);
       const data = await response.json();
       
       if (response.ok && data.success) {
@@ -499,7 +499,7 @@ export default function Collaboration({ token, role }) {
 
   const deleteClassroom = async (classroomId) => {
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/collaboration/classrooms/${classroomId}`, {
+      const response = await fetch(`https://ai-tutor-backend-m4rr.onrender.com/api/collaboration/classrooms/${classroomId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -520,7 +520,7 @@ export default function Collaboration({ token, role }) {
 
   const addMember = async (classroomId, username) => {
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/collaboration/classrooms/${classroomId}/members`, {
+      const response = await fetch(`https://ai-tutor-backend-m4rr.onrender.com/api/collaboration/classrooms/${classroomId}/members`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -544,7 +544,7 @@ export default function Collaboration({ token, role }) {
 
   const removeMember = async (classroomId, username) => {
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/collaboration/classrooms/${classroomId}/members/${username}`, {
+      const response = await fetch(`https://ai-tutor-backend-m4rr.onrender.com/api/collaboration/classrooms/${classroomId}/members/${username}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

@@ -31,7 +31,7 @@ export default function Login({ onLogin }) {
     try {
       console.log('Attempting login with:', { username, password });
       
-      const res = await fetch('http://127.0.0.1:5000/api/auth/login', {
+      const res = await fetch('https://ai-tutor-backend-m4rr.onrender.com/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -75,7 +75,7 @@ export default function Login({ onLogin }) {
         return;
       }
       
-      const res = await fetch('http://127.0.0.1:5000/api/auth/signup', {
+      const res = await fetch('https://ai-tutor-backend-m4rr.onrender.com/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password, role })
@@ -83,7 +83,7 @@ export default function Login({ onLogin }) {
       
       if (res.ok) {
         // Auto-login after successful registration
-        const loginRes = await fetch('http://127.0.0.1:5000/api/auth/login', {
+        const loginRes = await fetch('https://ai-tutor-backend-m4rr.onrender.com/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })

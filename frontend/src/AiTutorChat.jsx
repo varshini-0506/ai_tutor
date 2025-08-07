@@ -301,7 +301,7 @@ export default function AiTutorChat({ token }) {
   useEffect(() => {
     const checkOcrStatus = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:5000/check-ocr');
+        const res = await fetch('https://ai-tutor-backend-m4rr.onrender.com/check-ocr');
         const data = await res.json();
         setOcrStatus(data);
         if (!data.available) {
@@ -357,7 +357,7 @@ export default function AiTutorChat({ token }) {
         const base64String = reader.result;
         try {
           // Use the dedicated analyze-image route for better OCR processing
-          const res = await fetch('http://127.0.0.1:5000/analyze-image', {
+          const res = await fetch('https://ai-tutor-backend-m4rr.onrender.com/analyze-image', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
             body: JSON.stringify({ 
@@ -400,7 +400,7 @@ export default function AiTutorChat({ token }) {
 
     // Handle text-based actions
     try {
-      const res = await fetch('http://127.0.0.1:5000/chat', {
+      const res = await fetch('https://ai-tutor-backend-m4rr.onrender.com/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
         body: JSON.stringify({ message: question, action })

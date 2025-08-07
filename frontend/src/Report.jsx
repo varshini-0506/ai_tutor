@@ -126,7 +126,7 @@ function StudentDashboard() {
         return;
       }
       
-      const response = await fetch('http://127.0.0.1:5000/api/generate-report', {
+      const response = await fetch('https://ai-tutor-backend-m4rr.onrender.com/api/generate-report', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -138,7 +138,7 @@ function StudentDashboard() {
 
       if (data.success) {
         // Download the PDF file
-        const response2 = await fetch(`http://127.0.0.1:5000/api/download-report/${data.report_id}`);
+        const response2 = await fetch(`https://ai-tutor-backend-m4rr.onrender.com/api/download-report/${data.report_id}`);
         const pdfBlob = await response2.blob();
         
         const url = window.URL.createObjectURL(pdfBlob);
@@ -240,7 +240,7 @@ function TeacherDashboard() {
     try {
       const token = sessionStorage.getItem('token');
       const response = await axios.get(
-        'http://localhost:5000/api/reports',
+        'https://ai-tutor-backend-m4rr.onrender.com/api/reports',
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -265,7 +265,7 @@ function TeacherDashboard() {
     try {
       const token = sessionStorage.getItem('token');
       const response = await axios.get(
-        `http://localhost:5000/api/view-report/${report.id}`,
+        `https://ai-tutor-backend-m4rr.onrender.com/api/view-report/${report.id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
           responseType: 'blob',
@@ -281,7 +281,7 @@ function TeacherDashboard() {
 
   const downloadReport = async (reportId) => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/download-report/${reportId}`, {
+              const response = await axios.get(`https://ai-tutor-backend-m4rr.onrender.com/api/download-report/${reportId}`, {
         responseType: 'blob'
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -301,7 +301,7 @@ function TeacherDashboard() {
     if (!window.confirm('Are you sure you want to delete this report?')) return;
     try {
       const token = sessionStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/reports/${reportId}`, {
+              await axios.delete(`https://ai-tutor-backend-m4rr.onrender.com/api/reports/${reportId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setReports(reports.filter(r => r.id !== reportId));
@@ -332,7 +332,7 @@ function TeacherDashboard() {
     try {
       const token = sessionStorage.getItem('token');
       const response = await axios.post(
-        `http://localhost:5000/api/reports/${selectedReport.id}/remark`,
+        `https://ai-tutor-backend-m4rr.onrender.com/api/reports/${selectedReport.id}/remark`,
         { remark: remarkText },
         { headers: { Authorization: `Bearer ${token}` } }
       );
