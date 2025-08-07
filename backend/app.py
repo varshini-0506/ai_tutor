@@ -818,11 +818,11 @@ def generate_report():
         student_name = data.get('student_name', 'Student') if data else 'Student'
         print("Student name:", student_name)
         
-        # Get chart images from request
-        charts = data.get('charts', {})
-        
         # Get analytics data
         analytics_data = get_analytics_data()
+        
+        # Generate charts using matplotlib
+        charts = create_dummy_charts()
         
         # Generate unique filename
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -843,11 +843,11 @@ def generate_report():
         # Store in database
         report_id = report_db.save_report(
             student_name=student_name,
-            report_data=analytics_data,
+            report_data=json.dumps(analytics_data),
             pdf_path=pdf_path,
-            subject_scores=analytics_data.get('subject_scores', {}),
-            topic_completion=analytics_data.get('topic_completion', {}),
-            activity_data=analytics_data.get('activity_data', {})
+            subject_scores=json.dumps(analytics_data.get('subject_scores', {})),
+            topic_completion=json.dumps(analytics_data.get('topic_completion', {})),
+            activity_data=json.dumps(analytics_data.get('activity_data', {}))
         )
         
         print("Report generated successfully with ID:", report_id)
@@ -942,11 +942,11 @@ def get_reports():
                 
                 report_id = report_db.save_report(
                     student_name=username,
-                    report_data=report_data,
+                    report_data=json.dumps(report_data),
                     pdf_path=pdf_path,
-                    subject_scores=report_data["subject_scores"],
-                    topic_completion=report_data["topic_completion"],
-                    activity_data=report_data["activity_data"]
+                    subject_scores=json.dumps(report_data["subject_scores"]),
+                    topic_completion=json.dumps(report_data["topic_completion"]),
+                    activity_data=json.dumps(report_data["activity_data"])
                 )
                 
                 formatted_reports = [{
@@ -1169,11 +1169,11 @@ def seed_reports():
             
             report_db.save_report(
                 student_name=student_name,
-                report_data=report_data,
+                report_data=json.dumps(report_data),
                 pdf_path=pdf_path,
-                subject_scores=report_data["subject_scores"],
-                topic_completion=report_data["topic_completion"],
-                activity_data=report_data["activity_data"]
+                subject_scores=json.dumps(report_data["subject_scores"]),
+                topic_completion=json.dumps(report_data["topic_completion"]),
+                activity_data=json.dumps(report_data["activity_data"])
             )
             count += 1
         

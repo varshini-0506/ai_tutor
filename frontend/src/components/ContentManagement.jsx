@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './ContentManagement.css';
 
 export default function ContentManagement() {
   const [content, setContent] = useState([]);
@@ -79,7 +80,7 @@ export default function ContentManagement() {
   return (
     <div className="content-management-container">
       <h2>Course Content Management</h2>
-      {error && <div style={{ color: 'red', marginBottom: 16 }}>{error}</div>}
+      {error && <div className="error-message">{error}</div>}
       {loading ? (
         <div>Loading...</div>
       ) : (

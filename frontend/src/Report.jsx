@@ -13,6 +13,7 @@ import {
   LineElement 
 } from 'chart.js';
 import { useAuth } from './AuthContext.jsx';
+import './Report.css';
 
 // Register all necessary Chart.js components
 Chart.register(
@@ -106,35 +107,44 @@ function StudentDashboard() {
 
     try {
       const studentName = localStorage.getItem('username') || 'Student';
+      const sanitizedStudentName = studentName.replace(/[^a-zA-Z0-9\s]/g, '').trim() || 'Student';
       
-      const response = await fetch('http://127.0.0.1:5000/api/generate-report-pdf', {
+      const requestData = {
+        student_name: sanitizedStudentName
+      };
+      
+      console.log('Sending data to backend:', requestData);
+      
+      let jsonString;
+      try {
+        jsonString = JSON.stringify(requestData);
+        console.log('JSON string being sent:', jsonString);
+      } catch (jsonError) {
+        console.error('JSON stringify error:', jsonError);
+        setError('Failed to prepare data for PDF generation. Please try again.');
+        setIsGeneratingPDF(false);
+        return;
+      }
+      
+      const response = await fetch('http://127.0.0.1:5000/api/generate-report', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          subjects: subjectMasteryData.labels,
-          subjectScores: subjectMasteryData.datasets[0].data,
-          topicCompletion: topicCompletionData.datasets[0].data,
-          totalTopics: [20, 18, 25, 18, 12, 22],
-          activityDates: weeklyActivityData.labels,
-          activityCounts: weeklyActivityData.datasets[0].data,
-          studentName
-        })
+        body: jsonString
       });
 
       const data = await response.json();
 
       if (data.success) {
-        // Convert base64 to blob and download
-        const pdfBlob = new Blob([Uint8Array.from(atob(data.pdf_data), c => c.charCodeAt(0))], {
-          type: 'application/pdf'
-        });
+        // Download the PDF file
+        const response2 = await fetch(`http://127.0.0.1:5000/api/download-report/${data.report_id}`);
+        const pdfBlob = await response2.blob();
         
         const url = window.URL.createObjectURL(pdfBlob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = data.filename;
+        link.download = data.filename || `report_${sanitizedStudentName}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -156,24 +166,11 @@ function StudentDashboard() {
     <>
       <div className="reports-header no-print">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ fontSize: '2.2rem', margin: 0 }}>Your Progress Dashboard</h2>
+          <h2>Your Progress Dashboard</h2>
           <button
             onClick={generatePDF}
             disabled={isGeneratingPDF}
-            style={{
-              background: isGeneratingPDF ? '#ccc' : 'linear-gradient(90deg, #007bff, #4a4e69)',
-              color: 'white',
-              border: 'none',
-              borderRadius: 8,
-              padding: '12px 24px',
-              fontSize: 16,
-              fontWeight: 600,
-              cursor: isGeneratingPDF ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
+            className="download-pdf-btn"
           >
             {isGeneratingPDF ? '🔄 Generating...' : '📄 Download PDF'}
           </button>
@@ -181,51 +178,31 @@ function StudentDashboard() {
       </div>
 
       {error && (
-        <div style={{
-          background: '#f8d7da',
-          color: '#721c24',
-          padding: '12px 16px',
-          borderRadius: 8,
-          marginBottom: 20,
-          border: '1px solid #f5c6cb'
-        }}>
+        <div className="error-banner">
           {error}
         </div>
       )}
 
       {success && (
-        <div style={{
-          background: '#d4edda',
-          color: '#155724',
-          padding: '12px 16px',
-          borderRadius: 8,
-          marginBottom: 20,
-          border: '1px solid #c3e6cb'
-        }}>
+        <div className="success-banner">
           {success}
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr', gap: '2rem', alignItems: 'stretch' }}>
-        <div className="dashboard-card" style={{ height: '380px' }}>
-          <h3 style={{ marginBottom: '1.5rem' }}>Subject Mastery</h3>
+      <div className="dashboard-grid">
+        <div className="dashboard-card">
+          <h3>Subject Mastery</h3>
           <Bar data={subjectMasteryData} options={barOptions} />
         </div>
-        <div className="dashboard-card" style={{ height: '380px' }}>
-          <h3 style={{ marginBottom: '1.5rem' }}>Topic Completion</h3>
+        <div className="dashboard-card">
+          <h3>Topic Completion</h3>
           <Doughnut data={topicCompletionData} options={doughnutOptions} />
         </div>
       </div>
       
-      <div className="dashboard-card" style={{ marginTop: '2rem', height: '300px' }}>
+      <div className="dashboard-card activity-chart">
         <h3>Weekly Learning Activity</h3>
         <Line data={weeklyActivityData} options={lineOptions} />
-      </div>
-
-      <div style={{ textAlign: 'center', marginTop: '3rem' }} className="no-print">
-        <button onClick={() => window.print()} className="btn-primary" style={{padding: '0.8rem 2rem', fontSize: '1rem'}}>
-          📥 Download as PDF
-        </button>
       </div>
 
       <style>{`
@@ -387,7 +364,7 @@ function TeacherDashboard() {
 
   return (
     <>
-      <div className="reports-header no-print">
+      <div className="reports-header">
         <h2>📊 Student Reports Dashboard</h2>
       </div>
       
@@ -426,76 +403,29 @@ function TeacherDashboard() {
 
       {/* Remark Modal */}
       {showRemarkModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: 'white',
-            padding: '2rem',
-            borderRadius: '8px',
-            width: '90%',
-            maxWidth: '500px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
-          }}>
-            <h3 style={{ marginBottom: '1rem', color: '#333' }}>
-              Add Remark for {selectedReport?.student_name}
-            </h3>
+        <div className="remark-modal-overlay">
+          <div className="remark-modal">
+            <h3>Add Remark for {selectedReport?.student_name}</h3>
             <textarea
               value={remarkText}
               onChange={(e) => setRemarkText(e.target.value)}
               placeholder="Enter your remark here..."
-              style={{
-                width: '100%',
-                minHeight: '120px',
-                padding: '0.75rem',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '14px',
-                fontFamily: 'inherit',
-                resize: 'vertical'
-              }}
+              className="remark-textarea"
             />
-            <div style={{
-              display: 'flex',
-              gap: '1rem',
-              marginTop: '1rem',
-              justifyContent: 'flex-end'
-            }}>
+            <div className="modal-actions">
               <button
                 onClick={() => {
                   setShowRemarkModal(false);
                   setRemarkText('');
                   setSelectedReport(null);
                 }}
-                style={{
-                  padding: '0.5rem 1rem',
-                  border: '1px solid #ddd',
-                  background: '#f8f9fa',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
+                className="modal-cancel-btn"
               >
                 Cancel
               </button>
               <button
                 onClick={addRemark}
-                style={{
-                  padding: '0.5rem 1rem',
-                  border: 'none',
-                  background: '#007bff',
-                  color: 'white',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
+                className="modal-save-btn"
               >
                 Save Remark
               </button>

@@ -88,7 +88,11 @@ class PDFReportGenerator:
         
         # Extract data from report_data
         try:
-            data = json.loads(report_data) if isinstance(report_data, str) else report_data
+            # Handle both cases: report_data could be a dict or JSON string
+            if isinstance(report_data, str):
+                data = json.loads(report_data)
+            else:
+                data = report_data
             
             # Subject scores table
             if 'subject_scores' in data and data['subject_scores']:
