@@ -194,6 +194,28 @@ educational_content = []
 quizzes = []
 gamification = {"badges": [], "points": 0}
 
+# Rate limiting for API calls
+api_call_times = []
+RATE_LIMIT_WINDOW = 60  # 60 seconds
+MAX_CALLS_PER_WINDOW = 10  # Max 10 calls per minute
+
+def check_rate_limit():
+    """Check if we're within rate limits"""
+    import time
+    current_time = time.time()
+    
+    # Remove old calls outside the window
+    global api_call_times
+    api_call_times = [call_time for call_time in api_call_times if current_time - call_time < RATE_LIMIT_WINDOW]
+    
+    # Check if we're under the limit
+    if len(api_call_times) >= MAX_CALLS_PER_WINDOW:
+        return False
+    
+    # Record this call
+    api_call_times.append(current_time)
+    return True
+
 # 🤖 Load QA Model
 try:
     qa_pipeline = pipeline("question-answering")
@@ -335,6 +357,10 @@ def chat():
     data = request.get_json()
     user_input = data.get("message", "")
     action = data.get("action", "default")
+    
+    # Check rate limit first
+    if not check_rate_limit():
+        return jsonify({"reply": "Rate limit exceeded. Please try again later."})
 
     def extract_video_id(url):
         match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11}).*", url)
@@ -386,10 +412,15 @@ def chat():
         ]
     }
 
-    # Add retry logic and better error handling
+    # Add retry logic and better error handling with rate limiting
     max_retries = 3
     for attempt in range(max_retries):
         try:
+            # Add delay between retries to handle rate limiting
+            if attempt > 0:
+                import time
+                time.sleep(2 ** attempt)  # Exponential backoff: 2s, 4s, 8s
+            
             response = requests.post(
                 GEMINI_URL, 
                 headers=headers, 
@@ -397,6 +428,14 @@ def chat():
                 timeout=30,  # Add timeout
                 verify=True   # Ensure SSL verification
             )
+            
+            # Handle rate limiting specifically
+            if response.status_code == 429:
+                print(f"Rate limited on attempt {attempt + 1}, waiting...")
+                if attempt == max_retries - 1:
+                    return jsonify({"reply": "API rate limit exceeded. Please try again later."})
+                continue
+            
             response.raise_for_status()  # Raise exception for bad status codes
             break
         except requests.exceptions.SSLError as e:
@@ -535,6 +574,12 @@ def get_topics_by_subject(subject):
 def generate_quiz(subject):
     """Generate quiz questions for a specific subject using Gemini API"""
     try:
+        # Check rate limit first
+        if not check_rate_limit():
+            return jsonify({
+                "error": "Rate limit exceeded. Please try again later.",
+                "retry_after": 60
+            }), 429
         # Get topics for the subject
         data_path = os.path.join(os.path.dirname(__file__), 'course_data.json')
         topics = []
@@ -582,10 +627,15 @@ Make sure:
             ]
         }
 
-        # Add retry logic and better error handling
+        # Add retry logic and better error handling with rate limiting
         max_retries = 3
         for attempt in range(max_retries):
             try:
+                # Add delay between retries to handle rate limiting
+                if attempt > 0:
+                    import time
+                    time.sleep(2 ** attempt)  # Exponential backoff: 2s, 4s, 8s
+                
                 response = requests.post(
                     GEMINI_URL, 
                     headers=headers, 
@@ -593,6 +643,17 @@ Make sure:
                     timeout=30,  # Add timeout
                     verify=True   # Ensure SSL verification
                 )
+                
+                # Handle rate limiting specifically
+                if response.status_code == 429:
+                    print(f"Rate limited on attempt {attempt + 1}, waiting...")
+                    if attempt == max_retries - 1:
+                        return jsonify({
+                            "error": "API rate limit exceeded. Please try again later.",
+                            "retry_after": 60
+                        }), 429
+                    continue
+                
                 response.raise_for_status()  # Raise exception for bad status codes
                 break
             except requests.exceptions.SSLError as e:
@@ -650,6 +711,7 @@ Make sure:
                 "note": "Using sample questions due to API connectivity issues"
             })
         except Exception as fallback_error:
+            print(f"Fallback also failed: {str(fallback_error)}")
             return jsonify({"error": f"Failed to generate quiz: {str(e)}"}), 500
 
 def generate_sample_questions(subject, topics):
