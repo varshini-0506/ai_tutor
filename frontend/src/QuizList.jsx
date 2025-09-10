@@ -8,7 +8,7 @@ export default function QuizList({ token, role }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/api/quiz')
+          fetch('https://ai-tutor-backend-m4rr.onrender.com/api/quiz')
       .then(res => res.json())
       .then(setQuizzes);
   }, []);
@@ -16,7 +16,7 @@ export default function QuizList({ token, role }) {
   const handleAdd = async (e) => {
     e.preventDefault();
     setError('');
-    const res = await fetch('http://127.0.0.1:5000/api/quiz', {
+          const res = await fetch('https://ai-tutor-backend-m4rr.onrender.com/api/quiz', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

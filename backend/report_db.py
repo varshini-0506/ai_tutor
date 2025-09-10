@@ -129,4 +129,36 @@ class ReportDatabase:
         conn.commit()
         conn.close()
         
+        return True
+    
+    def update_report_pdf_path(self, report_id, new_pdf_path):
+        """Update the PDF path for a report"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            UPDATE reports
+            SET pdf_path = ?
+            WHERE id = ?
+        ''', (new_pdf_path, report_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return True
+    
+    def update_report_data(self, report_id, new_report_data):
+        """Update the report data for a report"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            UPDATE reports
+            SET report_data = ?
+            WHERE id = ?
+        ''', (new_report_data, report_id))
+        
+        conn.commit()
+        conn.close()
+        
         return True 

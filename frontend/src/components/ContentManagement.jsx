@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './ContentManagement.css';
 
 export default function ContentManagement() {
   const [content, setContent] = useState([]);
@@ -13,7 +14,7 @@ export default function ContentManagement() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:5000/api/course-data');
+      const res = await fetch('https://ai-tutor-backend-m4rr.onrender.com/api/course-data');
       if (!res.ok) throw new Error('Failed to fetch course data');
       const data = await res.json();
       setContent(data);
@@ -37,7 +38,7 @@ export default function ContentManagement() {
     setError('');
     try {
       const subject = content[subjectIndex].subject;
-      const res = await fetch('http://localhost:5000/api/course-data/add-topic', {
+      const res = await fetch('https://ai-tutor-backend-m4rr.onrender.com/api/course-data/add-topic', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subject, title: newTopic.title, videoUrl: newTopic.videoUrl })
@@ -58,7 +59,7 @@ export default function ContentManagement() {
     try {
       const subject = content[subjectIndex].subject;
       const title = content[subjectIndex].topics[topicIndex].title;
-      const res = await fetch('http://localhost:5000/api/course-data/delete-topic', {
+      const res = await fetch('https://ai-tutor-backend-m4rr.onrender.com/api/course-data/delete-topic', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subject, title })
@@ -79,7 +80,7 @@ export default function ContentManagement() {
   return (
     <div className="content-management-container">
       <h2>Course Content Management</h2>
-      {error && <div style={{ color: 'red', marginBottom: 16 }}>{error}</div>}
+      {error && <div className="error-message">{error}</div>}
       {loading ? (
         <div>Loading...</div>
       ) : (

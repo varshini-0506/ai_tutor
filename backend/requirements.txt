@@ -1,21 +1,30 @@
+# Web Framework
 Flask
 Flask-Cors
 Flask-JWT-Extended
+gunicorn
+
+# Database
 psycopg2-binary
+
+# Environment and Security
 python-dotenv
 bcrypt
-<<<<<<< HEAD
-flask-jwt-extended
-=======
->>>>>>> e2bbb3e36fe4f6ddaf110528e3cb057efa9f6ceb
+
+# HTTP and API
 requests
+
+# AI and Machine Learning
 transformers
+
+# Media Processing
 youtube-transcript-api
 Pillow
-pytesseract
-<<<<<<< HEAD
+
+# PDF Generation and Charts
 reportlab
 matplotlib
 numpy
-=======
->>>>>>> e2bbb3e36fe4f6ddaf110528e3cb057efa9f6ceb
+
+# Additional Dependencies
+Werkzeug

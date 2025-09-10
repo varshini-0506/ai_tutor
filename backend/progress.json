@@ -57,10 +57,7 @@
   {
     "subject": "Data Structures",
     "title": "Array data structure",
-<<<<<<< HEAD
     "timestamp": "2025-06-21T14:09:20.687Z"
-=======
-    "timestamp": "2025-06-20T07:29:02.614Z"
   },
   {
     "subject": "Data Structures",
@@ -71,6 +68,25 @@
     "subject": "Data Structures",
     "title": "Array data structure",
     "timestamp": "2025-06-22T12:18:19.522Z"
->>>>>>> e2bbb3e36fe4f6ddaf110528e3cb057efa9f6ceb
+  },
+  {
+    "subject": "Data Structures",
+    "title": "Linked list",
+    "timestamp": "2025-07-26T03:47:58.439Z"
+  },
+  {
+    "subject": "Data Structures",
+    "title": "Array data structure",
+    "timestamp": "2025-07-26T03:47:59.243Z"
+  },
+  {
+    "subject": "Operating Systems",
+    "title": "Process management",
+    "timestamp": "2025-08-07T14:05:51.093Z"
+  },
+  {
+    "subject": "Operating Systems",
+    "title": "Operating system",
+    "timestamp": "2025-08-07T14:13:35.731Z"
   }
 ]

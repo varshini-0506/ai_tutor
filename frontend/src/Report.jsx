@@ -10,9 +10,10 @@ import {
   LinearScale, 
   BarElement, 
   PointElement, 
-  LineElement as ChartJsLineElement 
+  LineElement 
 } from 'chart.js';
 import { useAuth } from './AuthContext.jsx';
+import './Report.css';
 
 // Register all necessary Chart.js components
 Chart.register(
@@ -23,7 +24,7 @@ Chart.register(
   LinearScale, 
   BarElement, 
   PointElement, 
-  ChartJsLineElement
+  LineElement
 );
 
 // Main Report Component
@@ -40,20 +41,24 @@ export default function Report() {
 
 // Student Dashboard Component
 function StudentDashboard() {
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
   const subjectMasteryData = {
-    labels: ['Data Structures', 'OS', 'DBMS', 'Networks', 'AI', 'ML'],
+    labels: ['Data Structures', 'Operating Systems', 'Database Management Systems', 'Computer Networks', 'Computer Organization & Architecture', 'Software Engineering'],
     datasets: [{
       label: 'Mastery',
-      data: [88, 75, 92, 80, 65, 95],
+      data: [88, 75, 92, 80, 85, 78],
       backgroundColor: ['#a6cee3', '#b2df8a', '#fdbf6f', '#cab2d6', '#fb9a99', '#99d8c9'],
       borderRadius: 6,
     }],
   };
 
   const topicCompletionData = {
-    labels: ['Data Structures', 'OS', 'DBMS', 'Networks', 'AI', 'ML'],
+    labels: ['Data Structures', 'Operating Systems', 'Database Management Systems', 'Computer Networks', 'Computer Organization & Architecture', 'Software Engineering'],
     datasets: [{
-      data: [18, 15, 22, 15, 10, 20],
+      data: [18, 15, 22, 15, 12, 16],
       backgroundColor: ['#a6cee3', '#b2df8a', '#fdbf6f', '#cab2d6', '#fb9a99', '#99d8c9'],
       borderColor: '#fff',
       borderWidth: 3,
@@ -95,32 +100,109 @@ function StudentDashboard() {
     scales: { y: { beginAtZero: true, max: 10 } },
   };
 
+  const generatePDF = async () => {
+    setIsGeneratingPDF(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const studentName = localStorage.getItem('username') || 'Student';
+      const sanitizedStudentName = studentName.replace(/[^a-zA-Z0-9\s]/g, '').trim() || 'Student';
+      
+      const requestData = {
+        student_name: sanitizedStudentName
+      };
+      
+      console.log('Sending data to backend:', requestData);
+      
+      let jsonString;
+      try {
+        jsonString = JSON.stringify(requestData);
+        console.log('JSON string being sent:', jsonString);
+      } catch (jsonError) {
+        console.error('JSON stringify error:', jsonError);
+        setError('Failed to prepare data for PDF generation. Please try again.');
+        setIsGeneratingPDF(false);
+        return;
+      }
+      
+      const response = await fetch('https://ai-tutor-backend-m4rr.onrender.com/api/generate-report', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonString
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Download the PDF file
+        const response2 = await fetch(`https://ai-tutor-backend-m4rr.onrender.com/api/download-report/${data.report_id}`);
+        const pdfBlob = await response2.blob();
+        
+        const url = window.URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = data.filename || `report_${sanitizedStudentName}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        setSuccess('PDF report downloaded successfully!');
+      } else {
+        setError(data.error || 'Failed to generate PDF');
+      }
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      setError('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   return (
     <>
       <div className="reports-header no-print">
-        <h2 style={{ fontSize: '2.2rem' }}>Your Progress Dashboard</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2>Your Progress Dashboard</h2>
+          <button
+            onClick={generatePDF}
+            disabled={isGeneratingPDF}
+            className="download-pdf-btn"
+          >
+            {isGeneratingPDF ? '🔄 Generating...' : '📄 Download PDF'}
+          </button>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr', gap: '2rem', alignItems: 'stretch' }}>
-        <div className="dashboard-card" style={{ height: '380px' }}>
-          <h3 style={{ marginBottom: '1.5rem' }}>Subject Mastery</h3>
+      {error && (
+        <div className="error-banner">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="success-banner">
+          {success}
+        </div>
+      )}
+
+      <div className="dashboard-grid">
+        <div className="dashboard-card">
+          <h3>Subject Mastery</h3>
           <Bar data={subjectMasteryData} options={barOptions} />
         </div>
-        <div className="dashboard-card" style={{ height: '380px' }}>
-          <h3 style={{ marginBottom: '1.5rem' }}>Topic Completion</h3>
+        <div className="dashboard-card">
+          <h3>Topic Completion</h3>
           <Doughnut data={topicCompletionData} options={doughnutOptions} />
         </div>
       </div>
       
-      <div className="dashboard-card" style={{ marginTop: '2rem', height: '300px' }}>
+      <div className="dashboard-card activity-chart">
         <h3>Weekly Learning Activity</h3>
         <Line data={weeklyActivityData} options={lineOptions} />
-      </div>
-
-      <div style={{ textAlign: 'center', marginTop: '3rem' }} className="no-print">
-        <button onClick={() => window.print()} className="btn-primary" style={{padding: '0.8rem 2rem', fontSize: '1rem'}}>
-          📥 Download as PDF
-        </button>
       </div>
 
       <style>{`
@@ -135,34 +217,47 @@ function StudentDashboard() {
   );
 }
 
-
-// Teacher Dashboard Component (renamed from TeacherReportList)
+// Teacher Dashboard Component
 function TeacherDashboard() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [selectedReport, setSelectedReport] = useState(null);
+  const [remarkText, setRemarkText] = useState('');
+  const [showRemarkModal, setShowRemarkModal] = useState(false);
+
+  // Clear message after 5 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => {
+        setMessage('');
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  const fetchReports = async () => {
+    try {
+      const token = sessionStorage.getItem('token');
+      const response = await axios.get(
+        'https://ai-tutor-backend-m4rr.onrender.com/api/reports',
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setReports(response.data);
+    } catch (error) {
+      setMessage(
+        `❌ Error loading reports: ${
+          error.response?.data?.error || error.message
+        }`
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchReports = async () => {
-      try {
-        const token = sessionStorage.getItem('token');
-        const response = await axios.get(
-          'http://localhost:5000/api/reports',
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        setReports(response.data);
-      } catch (error) {
-        setMessage(
-          `❌ Error loading reports: ${
-            error.response?.data?.error || error.message
-          }`
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchReports();
   }, []);
 
@@ -170,7 +265,7 @@ function TeacherDashboard() {
     try {
       const token = sessionStorage.getItem('token');
       const response = await axios.get(
-        `http://localhost:5000/api/view-report/${report.id}`,
+        `https://ai-tutor-backend-m4rr.onrender.com/api/view-report/${report.id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
           responseType: 'blob',
@@ -186,7 +281,7 @@ function TeacherDashboard() {
 
   const downloadReport = async (reportId) => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/download-report/${reportId}`, {
+              const response = await axios.get(`https://ai-tutor-backend-m4rr.onrender.com/api/download-report/${reportId}`, {
         responseType: 'blob'
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -206,7 +301,7 @@ function TeacherDashboard() {
     if (!window.confirm('Are you sure you want to delete this report?')) return;
     try {
       const token = sessionStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/reports/${reportId}`, {
+              await axios.delete(`https://ai-tutor-backend-m4rr.onrender.com/api/reports/${reportId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setReports(reports.filter(r => r.id !== reportId));
@@ -216,14 +311,72 @@ function TeacherDashboard() {
     }
   };
 
+  const openRemarkModal = (report) => {
+    setSelectedReport(report);
+    setRemarkText(report.remarks || '');
+    setShowRemarkModal(true);
+  };
+
+  const closeRemarkModal = () => {
+    setShowRemarkModal(false);
+    setSelectedReport(null);
+    setRemarkText('');
+  };
+
+  const addRemark = async () => {
+    if (!remarkText.trim()) {
+      setMessage('❌ Please enter a remark');
+      return;
+    }
+
+    try {
+      const token = sessionStorage.getItem('token');
+      const response = await axios.post(
+        `https://ai-tutor-backend-m4rr.onrender.com/api/reports/${selectedReport.id}/remark`,
+        { remark: remarkText },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Update the report in the local state immediately
+      setReports(prevReports => 
+        prevReports.map(r => 
+          r.id === selectedReport.id 
+            ? { ...r, remarks: remarkText }
+            : r
+        )
+      );
+
+      setMessage('✅ Remark added successfully');
+      setShowRemarkModal(false);
+      setRemarkText('');
+      setSelectedReport(null);
+
+      // Refresh the reports list to ensure everything is in sync
+      setTimeout(() => {
+        fetchReports();
+      }, 100);
+    } catch (error) {
+      setMessage(`❌ Error adding remark: ${error.response?.data?.error || error.message}`);
+    }
+  };
+
   if (loading) return <div>Loading reports...</div>;
-  if (message) return <div style={{ color: message.includes('❌') ? 'red' : 'green', marginBottom: 16 }}>{message}</div>;
 
   return (
     <>
-      <div className="reports-header no-print">
+      <div className="reports-header">
         <h2>📊 Student Reports Dashboard</h2>
       </div>
+      
+      {message && (
+        <div className="message-banner" style={{ 
+          color: message.includes('❌') ? 'red' : 'green', 
+          backgroundColor: message.includes('❌') ? '#fee' : '#efe'
+        }}>
+          {message}
+        </div>
+      )}
+
       <div className="report-grid">
         {reports.length > 0 ? reports.map((report) => (
           <div key={report.id} className="report-card">
@@ -236,6 +389,7 @@ function TeacherDashboard() {
             </p>
             <div className="report-card-actions">
               <button onClick={() => viewReportInModal(report)} className="btn-view">👁️ View</button>
+              <button onClick={() => openRemarkModal(report)} className="btn-remark">✏️ Remarks</button>
               <button onClick={() => downloadReport(report.id)} className="btn-download">📥 Download</button>
               <button onClick={() => deleteReport(report.id)} className="btn-delete">🗑️ Delete</button>
             </div>
@@ -246,6 +400,39 @@ function TeacherDashboard() {
           </div>
         )}
       </div>
+
+      {/* Remark Modal */}
+      {showRemarkModal && (
+        <div className="remark-modal-overlay">
+          <div className="remark-modal">
+            <h3>Add Remark for {selectedReport?.student_name}</h3>
+            <textarea
+              value={remarkText}
+              onChange={(e) => setRemarkText(e.target.value)}
+              placeholder="Enter your remark here..."
+              className="remark-textarea"
+            />
+            <div className="modal-actions">
+              <button
+                onClick={() => {
+                  setShowRemarkModal(false);
+                  setRemarkText('');
+                  setSelectedReport(null);
+                }}
+                className="modal-cancel-btn"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={addRemark}
+                className="modal-save-btn"
+              >
+                Save Remark
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
-} 
+}

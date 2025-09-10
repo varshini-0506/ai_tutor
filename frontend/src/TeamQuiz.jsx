@@ -50,7 +50,7 @@ export default function TeamQuiz({ quiz, onClose, token }) {
 
   const handleFinishQuiz = async () => {
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/collaboration/team-quizzes/${quiz.id}/submit-result`, {
+      const response = await fetch(`https://ai-tutor-backend-m4rr.onrender.com/api/collaboration/team-quizzes/${quiz.id}/submit-result`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
