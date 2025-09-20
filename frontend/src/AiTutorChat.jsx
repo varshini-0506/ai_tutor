@@ -82,8 +82,19 @@ function VoiceRecognition({ onTranscript, isListening, setIsListening }) {
   const [browserSupport, setBrowserSupport] = useState(null);
 
   useEffect(() => {
-    // Check browser support first
+    // Check browser support and HTTPS
     const checkBrowserSupport = () => {
+      // Check if running on HTTPS or localhost
+      const isSecure = window.location.protocol === 'https:' || 
+                      window.location.hostname === 'localhost' || 
+                      window.location.hostname === '127.0.0.1';
+      
+      if (!isSecure) {
+        console.warn('Speech recognition requires HTTPS or localhost');
+        setBrowserSupport('insecure');
+        return false;
+      }
+
       if ('webkitSpeechRecognition' in window) {
         setBrowserSupport('webkit');
         return true;
@@ -106,6 +117,10 @@ function VoiceRecognition({ onTranscript, isListening, setIsListening }) {
         recognitionRef.current.interimResults = false;
         recognitionRef.current.lang = 'en-US';
         recognitionRef.current.maxAlternatives = 1;
+        
+        // Add timeout to prevent hanging
+        recognitionRef.current.timeout = 10000; // 10 seconds
+        recognitionRef.current.grammars = null;
 
         recognitionRef.current.onresult = (event) => {
           console.log('Speech recognition result received');
@@ -132,31 +147,35 @@ function VoiceRecognition({ onTranscript, isListening, setIsListening }) {
               break;
             case 'audio-capture':
               console.log('No microphone was found');
-              alert('No microphone detected. Please check your microphone connection.');
+              alert('🎤 No microphone detected. Please check your microphone connection and try again.');
               break;
             case 'bad-grammar':
               console.log('Speech recognition grammar error');
+              alert('⚠️ Speech recognition grammar error. Please try again.');
               break;
             case 'language-not-supported':
               console.log('Language not supported');
+              alert('🌍 Language not supported. Please try again.');
               break;
             case 'network':
               console.log('Network error occurred');
-              alert('Network error occurred. Please check your internet connection.');
+              alert('🌐 Network error occurred. Please check your internet connection and try again. Voice recognition requires an internet connection.');
               break;
             case 'no-speech':
               console.log('No speech was detected');
-              alert('No speech detected. Please try speaking more clearly.');
+              alert('🔇 No speech detected. Please speak more clearly and try again.');
               break;
             case 'not-allowed':
               console.log('Permission denied for microphone');
-              alert('Microphone permission denied. Please allow microphone access in your browser settings.');
+              alert('🚫 Microphone permission denied. Please allow microphone access in your browser settings and refresh the page.');
               break;
             case 'service-not-allowed':
               console.log('Speech recognition service not allowed');
+              alert('🚫 Speech recognition service not allowed. Please check your browser settings.');
               break;
             default:
               console.log('Unknown speech recognition error:', event.error);
+              alert(`❌ Speech recognition error: ${event.error}. Please try again.`);
           }
           
           setIsListening(false);
@@ -192,33 +211,50 @@ function VoiceRecognition({ onTranscript, isListening, setIsListening }) {
   }, [onTranscript, setIsListening]);
 
   const startListening = () => {
-    if (recognitionRef.current && !isListening) {
+    if (!recognitionRef.current) {
+      alert('🚫 Voice recognition is not supported in your browser or requires HTTPS.');
+      return;
+    }
+    
+    if (isListening) {
+      console.log('Already listening');
+      return;
+    }
+    
+    try {
+      console.log('Starting speech recognition...');
+      
+      // Stop any existing recognition first
       try {
-        console.log('Starting speech recognition...');
-        
-        // Stop any existing recognition first
-        try {
-          recognitionRef.current.stop();
-        } catch (e) {
-          // Ignore errors when stopping
-        }
-        
-        // Small delay to ensure clean restart
-        setTimeout(() => {
-          try {
-            recognitionRef.current.start();
-            setIsListening(true);
-            console.log('Speech recognition started successfully');
-          } catch (error) {
-            console.error('Error starting speech recognition:', error);
-            setIsListening(false);
-            alert('Failed to start voice recognition. Please try again.');
-          }
-        }, 100);
-      } catch (error) {
-        console.error('Error in startListening:', error);
-        setIsListening(false);
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Ignore errors when stopping
       }
+      
+      // Small delay to ensure clean restart
+      setTimeout(() => {
+        try {
+          recognitionRef.current.start();
+          setIsListening(true);
+          console.log('Speech recognition started successfully');
+        } catch (error) {
+          console.error('Error starting speech recognition:', error);
+          setIsListening(false);
+          
+          // Provide specific error messages
+          if (error.name === 'NotAllowedError') {
+            alert('🚫 Microphone permission denied. Please allow microphone access and refresh the page.');
+          } else if (error.name === 'NotFoundError') {
+            alert('🎤 No microphone found. Please check your microphone connection.');
+          } else {
+            alert('❌ Failed to start voice recognition. Please try again.');
+          }
+        }
+      }, 200); // Increased delay for better reliability
+    } catch (error) {
+      console.error('Error in startListening:', error);
+      setIsListening(false);
+      alert('❌ Failed to start voice recognition. Please try again.');
     }
   };
 
@@ -268,12 +304,42 @@ function VoiceRecognition({ onTranscript, isListening, setIsListening }) {
     );
   }
 
+  // Show browser support status
+  const getBrowserSupportMessage = () => {
+    switch (browserSupport) {
+      case 'insecure':
+        return '🚫 Voice recognition requires HTTPS or localhost';
+      case 'webkit':
+        return '✅ Voice recognition supported (WebKit)';
+      case 'standard':
+        return '✅ Voice recognition supported';
+      case 'none':
+        return '❌ Voice recognition not supported in this browser';
+      default:
+        return '⏳ Checking voice recognition support...';
+    }
+  };
+
   return (
     <div className="voice-status">
+      <div className="browser-support-status" style={{ 
+        marginBottom: '1rem', 
+        padding: '0.5rem', 
+        borderRadius: '8px',
+        backgroundColor: browserSupport === 'webkit' || browserSupport === 'standard' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+        color: browserSupport === 'webkit' || browserSupport === 'standard' ? '#059669' : '#dc2626',
+        fontSize: '0.9rem',
+        textAlign: 'center',
+        border: `1px solid ${browserSupport === 'webkit' || browserSupport === 'standard' ? '#34d399' : '#f87171'}`
+      }}>
+        {getBrowserSupportMessage()}
+      </div>
+      
       <button
         className={`voice-btn ${isListening ? 'listening' : ''}`}
         onClick={isListening ? stopListening : startListening}
         title={isListening ? 'Stop listening' : 'Start voice input'}
+        disabled={!recognitionRef.current || browserSupport === 'none' || browserSupport === 'insecure'}
       >
         {isListening ? '🔴 Stop' : '🎤 Voice'}
       </button>

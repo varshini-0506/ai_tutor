@@ -139,7 +139,7 @@ def revoked_token_callback(jwt_header, jwt_payload):
     return jsonify({"msg": "Token has been revoked"}), 401
 
 # 🔐 Users
-API_KEY = "AIzaSyBy8rbj_Y5shHSBTyCFvJj_xuzGJbx8wdE"
+API_KEY = "AIzaSyAW0sxYjOyJF7rHf8PjD80ZPseWtvOXzTQ"
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
 
 educational_content = []
@@ -329,6 +329,21 @@ def chat():
                 timeout=30,  # Add timeout
                 verify=True   # Ensure SSL verification
             )
+            
+            # Handle rate limiting specifically
+            if response.status_code == 429:
+                if attempt < max_retries - 1:
+                    wait_time = (2 ** attempt) + 1  # Exponential backoff: 2s, 5s, 9s
+                    print(f"Rate limited. Waiting {wait_time} seconds before retry {attempt + 1}/{max_retries}")
+                    import time
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    return jsonify({
+                        "reply": "I'm currently experiencing high demand. Please try again in a few minutes.",
+                        "error": "API rate limit exceeded"
+                    })
+            
             response.raise_for_status()  # Raise exception for bad status codes
             break
         except requests.exceptions.SSLError as e:
@@ -525,6 +540,21 @@ Make sure:
                     timeout=30,  # Add timeout
                     verify=True   # Ensure SSL verification
                 )
+                
+                # Handle rate limiting specifically
+                if response.status_code == 429:
+                    if attempt < max_retries - 1:
+                        wait_time = (2 ** attempt) + 1  # Exponential backoff: 2s, 5s, 9s
+                        print(f"Rate limited. Waiting {wait_time} seconds before retry {attempt + 1}/{max_retries}")
+                        import time
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        return jsonify({
+                            "error": "API rate limit exceeded. Please try again in a few minutes.",
+                            "suggestion": "The quiz generation service is currently busy. Please wait a moment and try again."
+                        }), 429
+                
                 response.raise_for_status()  # Raise exception for bad status codes
                 break
             except requests.exceptions.SSLError as e:
@@ -875,8 +905,11 @@ def download_report(report_id):
         
         pdf_path = report['pdf_path']
         
+        # Check if PDF exists and regenerate if needed with new charts
         if not os.path.exists(pdf_path):
-            return jsonify({'error': 'PDF file not found'}), 404
+            # Regenerate the report with new charts
+            regenerate_report_with_charts(report)
+            pdf_path = report['pdf_path']
         
         return send_file(pdf_path, as_attachment=True, download_name=f"report_{report['student_name']}_{report_id}.pdf")
         
@@ -1043,25 +1076,53 @@ def get_analytics_data():
             "activity_data": {}
         }
     
-    with open('progress.json') as f:
-        logs = json.load(f)
+    try:
+        with open('progress.json') as f:
+            logs = json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"Error reading progress.json: {e}")
+        print("Returning default analytics data")
+        return {
+            "views_by_subject": {},
+            "views_by_topic": {},
+            "total_views": 0,
+            "subject_scores": {},
+            "topic_completion": {},
+            "activity_data": {}
+        }
     
     subj_counts = Counter(e['subject'] for e in logs)
     topic_counts = Counter(e['title'] for e in logs)
     
+    # Get actual subjects from course data for comprehensive analytics
+    try:
+        with open('course_data.json', 'r', encoding='utf-8') as f:
+            course_data = json.load(f)
+        all_subjects = [subject['subject'] for subject in course_data]
+    except Exception as e:
+        print(f"Error reading course data for analytics: {e}")
+        all_subjects = ['Data Structures', 'Operating Systems', 'Database Management Systems', 'Computer Networks']
+    
     # Generate mock subject scores based on activity
     subject_scores = {}
-    for subject, count in subj_counts.items():
-        # Generate a score between 60-95 based on activity
-        score = min(95, max(60, 60 + (count * 5)))
+    for subject in all_subjects:
+        # Use actual activity if available, otherwise generate random score
+        if subject in subj_counts:
+            score = min(95, max(60, 60 + (subj_counts[subject] * 5)))
+        else:
+            score = np.random.randint(60, 95)
         subject_scores[subject] = score
     
     # Generate topic completion data
     topic_completion = {}
-    for subject, count in subj_counts.items():
-        # Mock completion: 70-90% of total topics
-        total_topics = count * 2  # Assume 2x the viewed topics as total
-        completed = min(total_topics, int(count * 1.5))
+    for subject in all_subjects:
+        if subject in subj_counts:
+            # Mock completion: 70-90% of total topics
+            total_topics = subj_counts[subject] * 2  # Assume 2x the viewed topics as total
+            completed = min(total_topics, int(subj_counts[subject] * 1.5))
+        else:
+            # Generate random completion for subjects with no activity
+            completed = np.random.randint(3, 8)
         topic_completion[subject] = completed
     
     # Generate weekly activity data
@@ -1099,14 +1160,27 @@ def admin_page():
 def create_dummy_charts():
     charts = {}
     
+    # Get actual subjects from course data
+    try:
+        with open('course_data.json', 'r', encoding='utf-8') as f:
+            course_data = json.load(f)
+        subjects = [subject['subject'] for subject in course_data]
+        # Use first 6 subjects for the chart (or all if less than 6)
+        chart_subjects = subjects[:6] if len(subjects) >= 6 else subjects
+    except Exception as e:
+        print(f"Error reading course data: {e}")
+        # Fallback to default subjects
+        chart_subjects = ['Data Structures', 'Operating Systems', 'Database Management Systems', 'Computer Networks', 'Artificial Intelligence', 'Machine Learning']
+    
     # Bar Chart
-    subjects = ['Math', 'Science', 'History', 'English']
-    scores = np.random.randint(60, 100, size=len(subjects))
-    plt.figure(figsize=(6, 3))
-    plt.bar(subjects, scores, color=['#4e79a7', '#f28e2b', '#e15759', '#76b7b2'])
+    scores = np.random.randint(60, 100, size=len(chart_subjects))
+    plt.figure(figsize=(10, 4))  # Made wider to accommodate more subjects and longer names
+    colors = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#af7aa1', '#ff9da7', '#9c755f', '#bab0ab']
+    plt.bar(chart_subjects, scores, color=colors[:len(chart_subjects)])
     plt.title('Subject Mastery')
     plt.ylabel('Scores (%)')
     plt.ylim(0, 100)
+    plt.xticks(rotation=45, ha='right')  # Rotate labels for better readability
     
     img_buffer = io.BytesIO()
     plt.savefig(img_buffer, format='png', bbox_inches='tight')
@@ -1158,9 +1232,28 @@ def seed_reports():
 
             # Generate charts and rich data for the PDF
             charts = create_dummy_charts()
+            
+            # Get actual subjects from course data
+            try:
+                with open('course_data.json', 'r', encoding='utf-8') as f:
+                    course_data = json.load(f)
+                actual_subjects = [subject['subject'] for subject in course_data]
+                # Use first 4 subjects for the report
+                report_subjects = actual_subjects[:4] if len(actual_subjects) >= 4 else actual_subjects
+            except Exception as e:
+                print(f"Error reading course data for seed reports: {e}")
+                report_subjects = ['Data Structures', 'Operating Systems', 'Database Management Systems', 'Computer Networks']
+            
+            # Generate random scores for actual subjects
+            subject_scores = {}
+            topic_completion = {}
+            for subject in report_subjects:
+                subject_scores[subject] = np.random.randint(70, 95)
+                topic_completion[subject] = np.random.randint(5, 15)
+            
             report_data = {
-                "subject_scores": {"Math": 92, "Science": 85, "History": 78, "English": 88},
-                "topic_completion": {"Algebra": 10, "Biology": 8, "World War II": 7, "Shakespeare": 9},
+                "subject_scores": subject_scores,
+                "topic_completion": topic_completion,
                 "activity_data": {"Mon": 2, "Tue": 4, "Wed": 3, "Thu": 5, "Fri": 6, "Sat": 2, "Sun": 1},
                 "total_views": 23
             }
@@ -1195,11 +1288,98 @@ def view_report(report_id):
         
         pdf_path = report['pdf_path']
         
+        # Check if PDF exists and regenerate if needed with new charts
         if not os.path.exists(pdf_path):
-            return jsonify({'error': 'PDF file not found on server.'}), 404
+            # Regenerate the report with new charts
+            regenerate_report_with_charts(report)
+            pdf_path = report['pdf_path']
         
         # Use as_attachment=False to allow inline viewing
         return send_file(pdf_path, as_attachment=False)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def regenerate_report_with_charts(report):
+    """Regenerate a report with the new chart functionality"""
+    try:
+        student_name = report['student_name']
+        
+        # Generate fresh analytics data to ensure proper structure
+        analytics_data = get_analytics_data()
+        
+        # Generate new PDF with charts
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"report_{student_name.replace(' ', '_')}_{timestamp}.pdf"
+        pdf_path = os.path.join('reports', filename)
+        
+        # Get remarks from the original report
+        remarks = report.get('remarks')
+        
+        # Generate PDF with fresh analytics data and new chart functionality
+        pdf_generator.generate_report_pdf(student_name, analytics_data, pdf_path, charts=None, remarks=remarks)
+        
+        # Update the report in database with new PDF path and fresh data
+        report_db.update_report_pdf_path(report['id'], pdf_path)
+        
+        # Also update the report data in database to ensure consistency
+        report_db.update_report_data(report['id'], json.dumps(analytics_data))
+        
+        print(f"Successfully regenerated report for {student_name} with new charts")
+        
+    except Exception as e:
+        print(f"Error regenerating report: {e}")
+        import traceback
+        traceback.print_exc()
+
+@app.route('/api/regenerate-report/<int:report_id>', methods=['POST'])
+@jwt_required()
+def regenerate_report(report_id):
+    """Regenerate a specific report with new chart functionality"""
+    try:
+        # Check if user is teacher
+        claims = get_jwt()
+        user_role = claims.get('role')
+        
+        if user_role != 'teacher':
+            return jsonify({'error': 'Only teachers can regenerate reports'}), 403
+        
+        report = report_db.get_report_by_id(report_id)
+        if not report:
+            return jsonify({'error': 'Report not found'}), 404
+        
+        # Regenerate the report with new charts
+        regenerate_report_with_charts(report)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Report for {report["student_name"]} has been regenerated with new charts'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/test-generate-report', methods=['GET'])
+def test_generate_report():
+    """Test endpoint to generate a report with charts"""
+    try:
+        # Generate fresh analytics data
+        analytics_data = get_analytics_data()
+        
+        # Generate test PDF
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"test_report_{timestamp}.pdf"
+        pdf_path = os.path.join('reports', filename)
+        
+        # Generate PDF with charts
+        pdf_generator.generate_report_pdf("Test Student", analytics_data, pdf_path, charts=None, remarks="Test report with charts")
+        
+        return jsonify({
+            'success': True,
+            'pdf_path': pdf_path,
+            'analytics_data': analytics_data,
+            'message': 'Test report generated successfully'
+        })
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

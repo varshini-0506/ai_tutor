@@ -13,7 +13,7 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES', 86400))  # 24 hours in seconds
     
     # API Configuration
-    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'AIzaSyBy8rbj_Y5shHSBTyCFvJj_xuzGJbx8wdE')
+    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'AIzaSyAW0sxYjOyJF7rHf8PjD80ZPseWtvOXzTQ')
     GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
     
     # File Storage Configuration
@@ -47,7 +47,7 @@ class Config:
         print("=== AI Tutor Configuration ===")
         print(f"Database URL: {'Set' if cls.get_database_url() else 'Not Set'}")
         print(f"JWT Secret: {'Set' if cls.JWT_SECRET_KEY != 'your-secret-key' else 'Using Default'}")
-        print(f"Gemini API Key: {'Set' if cls.GEMINI_API_KEY != 'AIzaSyBy8rbj_Y5shHSBTyCFvJj_xuzGJbx8wdE' else 'Using Default'}")
+        print(f"Gemini API Key: {'Set' if cls.GEMINI_API_KEY != 'AIzaSyAW0sxYjOyJF7rHf8PjD80ZPseWtvOXzTQ' else 'Using Default'}")
         print(f"Debug Mode: {cls.DEBUG}")
         print(f"Host: {cls.HOST}")
         print(f"Port: {cls.PORT}")

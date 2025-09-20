@@ -24,9 +24,17 @@ import { AuthProvider, useAuth } from './AuthContext.jsx';
 
 // 🔹 Inner component to handle routing after login
 function AppRoutes() {
-  const { user, login, logout } = useAuth();
+  const { user, login, logout, validateToken } = useAuth();
   const navigate = useNavigate();
   const isTeacher = user?.role === 'teacher';
+
+  // Validate token on component mount and route changes
+  useEffect(() => {
+    if (user && !validateToken()) {
+      console.log('Token validation failed - redirecting to login');
+      navigate('/login');
+    }
+  }, [user, validateToken, navigate]);
 
   const handleLogin = (token, role, username) => {
     login(token, role, username);
