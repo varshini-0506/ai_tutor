@@ -13,7 +13,7 @@ function Lessons() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    axios.get("http://localhost:5000/api/course-data")
+            axios.get("https://ai-tutor-backend-m4rr.onrender.com/api/course-data")
       .then((res) => {
         console.log("✅ Fetched live course data:", res.data);
         setData(res.data);
@@ -40,7 +40,7 @@ function Lessons() {
     const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(title + " tutorial")}`;
     setYoutubeUrl(searchUrl);
     try {
-      await axios.post("http://localhost:5000/api/progress", {
+              await axios.post("https://ai-tutor-backend-m4rr.onrender.com/api/progress", {
         subject,
         title,
         timestamp: new Date().toISOString(),

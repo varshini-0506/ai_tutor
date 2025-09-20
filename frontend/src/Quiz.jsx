@@ -34,7 +34,7 @@ export default function Quiz({ token }) {
 
   const loadSubjects = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/subjects');
+      const response = await fetch('https://ai-tutor-backend-m4rr.onrender.com/api/subjects');
       if (response.ok) {
         const data = await response.json();
         setSubjects(data);
@@ -49,7 +49,7 @@ export default function Quiz({ token }) {
       setIsGeneratingQuiz(true);
       setError('');
       
-      const response = await fetch(`http://127.0.0.1:5000/api/generate-quiz/${encodeURIComponent(subject)}`);
+              const response = await fetch(`https://ai-tutor-backend-m4rr.onrender.com/api/generate-quiz/${encodeURIComponent(subject)}`);
       const data = await response.json();
       
       if (response.ok && data.success) {

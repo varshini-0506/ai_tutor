@@ -13,10 +13,20 @@ import matplotlib
 matplotlib.use('Agg')
 
 from auth_routes import auth
-from transformers import pipeline
+try:
+    from transformers import pipeline
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_AVAILABLE = False
+    print("Warning: transformers not available. AI features will be disabled.")
 from auth_routes import auth
 from collaboration import collaboration
-from transformers.pipelines import pipeline
+try:
+    from transformers.pipelines import pipeline
+    TRANSFORMERS_PIPELINES_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_PIPELINES_AVAILABLE = False
+    print("Warning: transformers.pipelines not available. AI features will be disabled.")
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
 from collections import Counter
 from youtube_transcript_api import YouTubeTranscriptApi
@@ -24,7 +34,12 @@ import re
 from PIL import Image
 import base64
 import io
-import pytesseract
+try:
+    import pytesseract
+    PYTESSERACT_AVAILABLE = True
+except ImportError:
+    PYTESSERACT_AVAILABLE = False
+    print("Warning: pytesseract not available. OCR features will be disabled.")
 from neon_report_db import NeonReportDatabase
 from config import Config
 from pdf_generator import PDFReportGenerator
@@ -82,7 +97,15 @@ except Exception as e:
 Config.print_config()
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True, allow_headers=["Authorization", "Content-Type"])
+CORS(app, 
+     resources={r"/*": {
+         "origins": ["http://localhost:3000", "http://127.0.0.1:3000", "https://ai-tutor-frontend-kkne.onrender.com", "https://ai-tutor-frontend-*.onrender.com", "*"],
+         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         "allow_headers": ["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
+         "expose_headers": ["Content-Type", "Authorization"],
+         "supports_credentials": True,
+         "max_age": 86400
+     }})
 app.config["JWT_SECRET_KEY"] = "your-secret-key"
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)  # Set 24 hour expiration
 app.config["JWT_ERROR_MESSAGE_KEY"] = "msg"
@@ -90,6 +113,26 @@ app.config["JWT_TOKEN_LOCATION"] = ["headers"]
 app.config["JWT_HEADER_NAME"] = "Authorization"
 app.config["JWT_HEADER_TYPE"] = "Bearer"
 jwt = JWTManager(app)
+
+# Add OPTIONS handler for preflight requests
+@app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
+@app.route('/<path:path>', methods=['OPTIONS'])
+def handle_options(path):
+    response = app.make_default_options_response()
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept,Origin,X-Requested-With')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
+
+# Add CORS headers to all responses
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept,Origin,X-Requested-With')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
 
 # JWT Error Handlers for debugging
 @jwt.unauthorized_loader
@@ -150,6 +193,28 @@ gamification = {"badges": [], "points": 0}
 educational_content = []
 quizzes = []
 gamification = {"badges": [], "points": 0}
+
+# Rate limiting for API calls
+api_call_times = []
+RATE_LIMIT_WINDOW = 60  # 60 seconds
+MAX_CALLS_PER_WINDOW = 10  # Max 10 calls per minute
+
+def check_rate_limit():
+    """Check if we're within rate limits"""
+    import time
+    current_time = time.time()
+    
+    # Remove old calls outside the window
+    global api_call_times
+    api_call_times = [call_time for call_time in api_call_times if current_time - call_time < RATE_LIMIT_WINDOW]
+    
+    # Check if we're under the limit
+    if len(api_call_times) >= MAX_CALLS_PER_WINDOW:
+        return False
+    
+    # Record this call
+    api_call_times.append(current_time)
+    return True
 
 # 🤖 Load QA Model
 try:
@@ -262,11 +327,40 @@ def test_headers():
         "authorization": request.headers.get('Authorization')
     })
 
+@app.route('/api/test-cors', methods=['GET', 'POST', 'OPTIONS'])
+def test_cors():
+    """Test route specifically for CORS debugging"""
+    print(f"Debug - CORS test called with method: {request.method}")
+    print(f"Debug - Request headers: {dict(request.headers)}")
+    print(f"Debug - Origin: {request.headers.get('Origin', 'No origin header')}")
+    
+    if request.method == 'OPTIONS':
+        print("Debug - Handling OPTIONS preflight request")
+        response = app.make_default_options_response()
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept,Origin,X-Requested-With')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        print(f"Debug - OPTIONS response headers: {dict(response.headers)}")
+        return response
+    
+    print("Debug - Handling regular request")
+    return jsonify({
+        "message": "CORS test successful!", 
+        "method": request.method,
+        "origin": request.headers.get('Origin', 'No origin header'),
+        "headers": dict(request.headers)
+    })
+
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.get_json()
     user_input = data.get("message", "")
     action = data.get("action", "default")
+    
+    # Check rate limit first
+    if not check_rate_limit():
+        return jsonify({"reply": "Rate limit exceeded. Please try again later."})
 
     def extract_video_id(url):
         match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11}).*", url)
@@ -318,10 +412,15 @@ def chat():
         ]
     }
 
-    # Add retry logic and better error handling
+    # Add retry logic and better error handling with rate limiting
     max_retries = 3
     for attempt in range(max_retries):
         try:
+            # Add delay between retries to handle rate limiting
+            if attempt > 0:
+                import time
+                time.sleep(2 ** attempt)  # Exponential backoff: 2s, 4s, 8s
+            
             response = requests.post(
                 GEMINI_URL, 
                 headers=headers, 
@@ -332,17 +431,10 @@ def chat():
             
             # Handle rate limiting specifically
             if response.status_code == 429:
-                if attempt < max_retries - 1:
-                    wait_time = (2 ** attempt) + 1  # Exponential backoff: 2s, 5s, 9s
-                    print(f"Rate limited. Waiting {wait_time} seconds before retry {attempt + 1}/{max_retries}")
-                    import time
-                    time.sleep(wait_time)
-                    continue
-                else:
-                    return jsonify({
-                        "reply": "I'm currently experiencing high demand. Please try again in a few minutes.",
-                        "error": "API rate limit exceeded"
-                    })
+                print(f"Rate limited on attempt {attempt + 1}, waiting...")
+                if attempt == max_retries - 1:
+                    return jsonify({"reply": "API rate limit exceeded. Please try again later."})
+                continue
             
             response.raise_for_status()  # Raise exception for bad status codes
             break
@@ -482,6 +574,12 @@ def get_topics_by_subject(subject):
 def generate_quiz(subject):
     """Generate quiz questions for a specific subject using Gemini API"""
     try:
+        # Check rate limit first
+        if not check_rate_limit():
+            return jsonify({
+                "error": "Rate limit exceeded. Please try again later.",
+                "retry_after": 60
+            }), 429
         # Get topics for the subject
         data_path = os.path.join(os.path.dirname(__file__), 'course_data.json')
         topics = []
@@ -529,10 +627,15 @@ Make sure:
             ]
         }
 
-        # Add retry logic and better error handling
+        # Add retry logic and better error handling with rate limiting
         max_retries = 3
         for attempt in range(max_retries):
             try:
+                # Add delay between retries to handle rate limiting
+                if attempt > 0:
+                    import time
+                    time.sleep(2 ** attempt)  # Exponential backoff: 2s, 4s, 8s
+                
                 response = requests.post(
                     GEMINI_URL, 
                     headers=headers, 
@@ -543,17 +646,13 @@ Make sure:
                 
                 # Handle rate limiting specifically
                 if response.status_code == 429:
-                    if attempt < max_retries - 1:
-                        wait_time = (2 ** attempt) + 1  # Exponential backoff: 2s, 5s, 9s
-                        print(f"Rate limited. Waiting {wait_time} seconds before retry {attempt + 1}/{max_retries}")
-                        import time
-                        time.sleep(wait_time)
-                        continue
-                    else:
+                    print(f"Rate limited on attempt {attempt + 1}, waiting...")
+                    if attempt == max_retries - 1:
                         return jsonify({
-                            "error": "API rate limit exceeded. Please try again in a few minutes.",
-                            "suggestion": "The quiz generation service is currently busy. Please wait a moment and try again."
+                            "error": "API rate limit exceeded. Please try again later.",
+                            "retry_after": 60
                         }), 429
+                    continue
                 
                 response.raise_for_status()  # Raise exception for bad status codes
                 break
@@ -612,6 +711,7 @@ Make sure:
                 "note": "Using sample questions due to API connectivity issues"
             })
         except Exception as fallback_error:
+            print(f"Fallback also failed: {str(fallback_error)}")
             return jsonify({"error": f"Failed to generate quiz: {str(e)}"}), 500
 
 def generate_sample_questions(subject, topics):
@@ -1491,20 +1591,21 @@ This analysis is based on general programming best practices. For more detailed 
 def check_ocr():
     """Check if OCR (Tesseract) is properly installed and working"""
     try:
-        import pytesseract
-        version = pytesseract.get_tesseract_version()
-        return jsonify({
-            'status': 'success',
-            'message': 'OCR is available',
-            'tesseract_version': str(version),
-            'available': True
-        })
-    except ImportError:
-        return jsonify({
-            'status': 'error',
-            'message': 'pytesseract library not installed',
-            'available': False
-        })
+        if PYTESSERACT_AVAILABLE:
+            import pytesseract
+            version = pytesseract.get_tesseract_version()
+            return jsonify({
+                'status': 'success',
+                'message': 'OCR is available',
+                'tesseract_version': str(version),
+                'available': True
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'pytesseract library not installed',
+                'available': False
+            })
     except Exception as e:
         return jsonify({
             'status': 'error',
@@ -1540,14 +1641,15 @@ def analyze_image():
         ocr_success = False
         try:
             # Check if pytesseract is available
-            import pytesseract
-            text = pytesseract.image_to_string(image)
-            text = text.strip()
-            ocr_success = True
-            print(f"OCR extracted text: {text[:100]}...")  # Log first 100 chars
-        except ImportError:
-            print("pytesseract not installed")
-            text = "OCR library not available"
+            if PYTESSERACT_AVAILABLE:
+                import pytesseract
+                text = pytesseract.image_to_string(image)
+                text = text.strip()
+                ocr_success = True
+                print(f"OCR extracted text: {text[:100]}...")  # Log first 100 chars
+            else:
+                print("pytesseract not installed")
+                text = "OCR library not available"
         except Exception as ocr_error:
             print(f"OCR Error: {ocr_error}")
             text = "Could not extract text from image"

@@ -1,0 +1,30 @@
+# Web Framework
+Flask>=2.3.0,<3.0.0
+Flask-Cors>=4.0.0
+Flask-JWT-Extended>=4.5.0
+gunicorn>=21.0.0
+
+# Database
+psycopg2-binary>=2.9.0
+
+# Environment and Security
+python-dotenv>=1.0.0
+bcrypt>=4.0.0
+
+# HTTP and API
+requests>=2.31.0
+
+# AI and Machine Learning
+transformers>=4.35.0
+
+# Media Processing
+youtube-transcript-api>=0.6.0
+Pillow>=10.0.0
+
+# PDF Generation and Charts
+reportlab>=4.0.0
+matplotlib>=3.7.0
+numpy>=1.24.0
+
+# Additional Dependencies
+Werkzeug>=2.3.0 
