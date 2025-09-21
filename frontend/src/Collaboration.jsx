@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './Collaboration.css';
 import TeamQuiz from './TeamQuiz';
 import QuizTakingInterface from './QuizTakingInterface';
+import { useAuth } from './AuthContext.jsx';
 
 export default function Collaboration({ token, role }) {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
   const [classrooms, setClassrooms] = useState([]);
   const [teamQuizzes, setTeamQuizzes] = useState([]);
   const [selectedClassroom, setSelectedClassroom] = useState(null);
@@ -52,6 +56,16 @@ export default function Collaboration({ token, role }) {
     correct_answer: 0
   });
 
+  // Helper function to handle token expiration
+  const handleTokenExpiration = () => {
+    console.log('Token has expired - logging out user');
+    setError('Your session has expired. Please log in again.');
+    setTimeout(() => {
+      logout();
+      navigate('/login');
+    }, 2000); // Give user 2 seconds to read the message
+  };
+
   // Debug token on component mount
   useEffect(() => {
     console.log('Collaboration component mounted');
@@ -60,8 +74,21 @@ export default function Collaboration({ token, role }) {
     console.log('Token length:', token ? token.length : 'null');
     if (token) {
       console.log('Token starts with:', token.substring(0, 20) + '...');
+      
+      // Check if token is expired on mount
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.exp * 1000 < Date.now()) {
+          handleTokenExpiration();
+          return;
+        }
+      } catch (e) {
+        console.log('Error parsing token:', e);
+        handleTokenExpiration();
+        return;
+      }
     }
-  }, [token]);
+  }, [token, logout, navigate]);
 
   // Test JWT token function
   const testJWT = async () => {
@@ -122,7 +149,7 @@ export default function Collaboration({ token, role }) {
           
           if (payload.exp * 1000 < Date.now()) {
             console.log('Token is expired!');
-            setError('Token has expired. Please log in again.');
+            handleTokenExpiration();
             return;
           }
         } catch (e) {
@@ -205,7 +232,7 @@ export default function Collaboration({ token, role }) {
           
           if (payload.exp * 1000 < Date.now()) {
             console.log('Token is expired!');
-            setError('Token has expired. Please log in again.');
+            handleTokenExpiration();
             return;
           }
         } catch (e) {
@@ -467,7 +494,14 @@ export default function Collaboration({ token, role }) {
       setIsGeneratingQuiz(true);
       setError('');
       
+<<<<<<< HEAD
+      // Add a small delay to prevent rapid API calls
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const response = await fetch(`http://127.0.0.1:5000/api/generate-quiz/${encodeURIComponent(subject)}`);
+=======
       const response = await fetch(`https://ai-tutor-backend-m4rr.onrender.com/api/generate-quiz/${encodeURIComponent(subject)}`);
+>>>>>>> cbb4937eb41ec9f6932ee021fdbc34361997c05e
       const data = await response.json();
       
       if (response.ok && data.success) {
@@ -487,7 +521,12 @@ export default function Collaboration({ token, role }) {
           setSuccess(`Generated ${data.questions.length} quiz questions for ${subject}!`);
         }
       } else {
-        setError(data.error || 'Failed to generate quiz questions');
+        // Handle rate limiting specifically
+        if (response.status === 429) {
+          setError(`⏰ ${data.error || 'Service is busy'}. ${data.suggestion || 'Please wait a moment and try again.'}`);
+        } else {
+          setError(data.error || 'Failed to generate quiz questions');
+        }
       }
     } catch (err) {
       console.error('Failed to generate quiz questions:', err);

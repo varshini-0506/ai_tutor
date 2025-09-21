@@ -47,7 +47,7 @@ class Config:
         print("=== AI Tutor Configuration ===")
         print(f"Database URL: {'Set' if cls.get_database_url() else 'Not Set'}")
         print(f"JWT Secret: {'Set' if cls.JWT_SECRET_KEY != 'your-secret-key' else 'Using Default'}")
-        print(f"Gemini API Key: {'Set' if cls.GEMINI_API_KEY != 'AIzaSyBy8rbj_Y5shHSBTyCFvJj_xuzGJbx8wdE' else 'Using Default'}")
+        print(f"Gemini API Key: {'Set' if cls.GEMINI_API_KEY != 'AIzaSyAW0sxYjOyJF7rHf8PjD80ZPseWtvOXzTQ' else 'Using Default'}")
         print(f"Debug Mode: {cls.DEBUG}")
         print(f"Host: {cls.HOST}")
         print(f"Port: {cls.PORT}")
