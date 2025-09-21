@@ -13,7 +13,9 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES', 86400))  # 24 hours in seconds
     
     # API Configuration   
-    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY','AIzaSyBY7gxBxXmamsKvuGg0MO2PWiR4ka21JT0')
+    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY environment variable is required")
     GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
     
     # File Storage Configuration

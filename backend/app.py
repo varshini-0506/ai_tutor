@@ -182,8 +182,8 @@ def revoked_token_callback(jwt_header, jwt_payload):
     return jsonify({"msg": "Token has been revoked"}), 401
 
 # 🔐 Users
-API_KEY = "AIzaSyAW0sxYjOyJF7rHf8PjD80ZPseWtvOXzTQ"
-GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
+# Use API key from Config class
+GEMINI_URL = Config.GEMINI_URL
 
 educational_content = []
 quizzes = []
