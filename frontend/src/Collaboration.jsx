@@ -494,14 +494,7 @@ export default function Collaboration({ token, role }) {
       setIsGeneratingQuiz(true);
       setError('');
       
-<<<<<<< HEAD
-      // Add a small delay to prevent rapid API calls
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const response = await fetch(`http://127.0.0.1:5000/api/generate-quiz/${encodeURIComponent(subject)}`);
-=======
       const response = await fetch(`https://ai-tutor-backend-m4rr.onrender.com/api/generate-quiz/${encodeURIComponent(subject)}`);
->>>>>>> cbb4937eb41ec9f6932ee021fdbc34361997c05e
       const data = await response.json();
       
       if (response.ok && data.success) {
